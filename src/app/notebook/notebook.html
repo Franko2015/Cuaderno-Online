@@ -1,0 +1,744 @@
+<div class="notebook-app h-screen flex flex-col bg-[var(--nb-canvas)] text-[var(--nb-ink)]"
+  [class.notebook-app--focus]="focusMode()">
+  @if (notebook()) {
+  <header
+    class="notebook-header nb-no-print shrink-0 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between px-3 sm:px-4 py-2.5 border-b border-[var(--nb-border)] bg-[var(--nb-header)]"
+    [class.notebook-header--focus]="focusMode()">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+      <button type="button" (click)="goBackToNotebooks()"
+        class="nb-icon-btn p-2 sm:p-2.5 rounded-xl text-[var(--nb-ink-muted)] hover:text-[var(--nb-accent)] hover:bg-[var(--nb-surface)] transition shrink-0"
+        aria-label="Volver a cuadernos">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <button type="button" (click)="toggleSidebarCollapsed()"
+        class="nb-icon-btn p-2 rounded-xl text-[var(--nb-ink-muted)] hover:bg-[var(--nb-surface)] shrink-0 lg:hidden"
+        [attr.aria-expanded]="!sidebarCollapsed()" aria-label="Mostrar u ocultar lista de hojas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+        </svg>
+      </button>
+      <div class="min-w-0 flex-1">
+        <p class="text-[10px] uppercase tracking-widest text-[var(--nb-ink-faint)] font-semibold">Cuaderno</p>
+        <h1 class="text-base sm:text-lg font-bold truncate text-[var(--nb-ink)]">{{ notebook()!.name }}</h1>
+      </div>
+      @if (selectedSheet() && sheetNavLabel()) {
+      <div class="hidden sm:flex items-center gap-1 shrink-0 text-xs text-[var(--nb-ink-muted)]">
+        <button type="button" class="nb-icon-btn p-1.5 rounded-lg" (click)="goAdjacentSheet(-1)"
+          aria-label="Hoja anterior">‹</button>
+        <span class="tabular-nums font-medium px-1">{{ sheetNavLabel() }}</span>
+        <button type="button" class="nb-icon-btn p-1.5 rounded-lg" (click)="goAdjacentSheet(1)"
+          aria-label="Hoja siguiente">›</button>
+      </div>
+      }
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
+      @if (interactionMode() === 'draw') {
+        <button type="button" (click)="toggleFullscreenDrawMode()" 
+          class="nb-tool-btn px-2.5 py-2 rounded-xl text-xs font-semibold"
+          [class.nb-tool-btn--active]="fullscreenDrawMode()" 
+          title="Pantalla completa para dibujo">
+          ⛶
+        </button>
+      }
+      <button type="button" (click)="toggleFocusMode()" class="nb-tool-btn px-2.5 py-2 rounded-xl text-xs font-semibold"
+        [class.nb-tool-btn--active]="focusMode()" title="Modo foco (Ctrl+Shift+F)">
+        Foco
+      </button>
+      <button type="button" (click)="toggleSidebarCollapsed()"
+        class="nb-tool-btn px-2.5 py-2 rounded-xl text-xs font-semibold hidden lg:inline-flex"
+        [class.nb-tool-btn--active]="sidebarCollapsed()" title="Lista de hojas (Ctrl+Shift+L)">
+        Hojas
+      </button>
+      <button type="button" (click)="showShortcutsModal.set(true)"
+        class="nb-tool-btn px-2.5 py-2 rounded-xl text-xs font-semibold" title="Atajos (Ctrl+/)">
+        ?
+      </button>
+      <button type="button" (click)="openCreateSheetModal()"
+        class="nb-primary-btn px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm">
+        + Hoja
+      </button>
+
+      <!-- Theme Toggle (Fixed Position) -->
+      <button (click)="toggleTheme()"
+        class="nb-primary-btn px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm"
+        [class.nb-primary-btn--dark]="themeService.isDark()" [class.nb-primary-btn--light]="!themeService.isDark()">
+        @if (themeService.isDark()) {
+        <span>☀️ Claro</span>
+        } @else {
+        <span>🌙 Oscuro</span>
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- Modal for Creating Sheet -->
+  @if (showCreateSheetModal()) {
+  <div class="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" (click)="closeCreateSheetModal()">
+    <div class="bg-[var(--nb-paper)] rounded-2xl border border-[var(--nb-border)] p-6 max-w-md w-full shadow-xl"
+      (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-[var(--nb-ink)] mb-4">Nueva hoja</h2>
+      <label class="block text-xs font-semibold text-[var(--nb-ink-muted)] mb-1">Título</label>
+      <input type="text" class="nb-input w-full rounded-xl px-3 py-2.5 text-sm mb-4"
+        placeholder="Ej: Tema 3 — derivadas" [value]="newSheetTitle()"
+        (input)="newSheetTitle.set($any($event.target).value)" (keydown.enter)="confirmCreateSheet()">
+      <div class="flex justify-end gap-2">
+        <button type="button" class="nb-tool-btn px-4 py-2 rounded-xl text-sm font-semibold"
+          (click)="closeCreateSheetModal()">Cancelar</button>
+        <button type="button" class="nb-primary-btn px-4 py-2 rounded-xl text-sm font-semibold"
+          (click)="confirmCreateSheet()">Crear</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
+    <aside
+      class="nb-sidebar w-[min(100%,300px)] lg:w-[min(100%,320px)] shrink-0 flex flex-col border-r border-[var(--nb-border)] bg-[var(--nb-sidebar)] nb-no-print"
+      [class.nb-sidebar--collapsed]="sidebarCollapsed()">
+      <div class="p-3 border-b border-[var(--nb-border)]">
+        <label class="sr-only" for="sheet-search">Buscar hoja</label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nb-ink-faint)] pointer-events-none"
+            aria-hidden="true">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </span>
+          <input id="sheet-search" type="text" placeholder="Título o etiqueta…"
+            class="nb-input w-full pl-9 pr-3 py-2.5 rounded-xl text-sm" [value]="sheetSearch()"
+            (input)="sheetSearch.set($any($event.target).value)" />
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+        @if (filteredSheets().length > 0) {
+        @for (sheet of filteredSheets(); track sheet.id) {
+        <button type="button"
+          class="nb-sheet-item w-full text-left rounded-xl px-3 py-3 transition border border-transparent"
+          [class.nb-sheet-item--active]="selectedSheet()?.id === sheet.id" (click)="onSheetClick(sheet)"
+          (contextmenu)="onSheetContextMenu(sheet, $event)">
+          <span class="flex items-start gap-2.5">
+            <span
+              class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--nb-surface)] text-[var(--nb-ink-muted)] nb-sheet-item-icon">
+              @if (sheet.pinned) {
+              <span class="text-[var(--nb-accent)] text-lg leading-none" aria-hidden="true">📌</span>
+              } @else {
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+              </svg>
+              }
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="font-semibold text-sm truncate block text-[var(--nb-ink)]">{{ sheet.title }}</span>
+              <span class="text-xs text-[var(--nb-ink-faint)] mt-0.5 block">
+                {{ plainTextLength(sheet.content) }} car.
+                @if (sheetKind(sheet) === 'text') {
+                <span> · texto</span>
+                } @else if (sheetKind(sheet) === 'draw') {
+                <span class="text-[var(--nb-accent)]"> · dibujo</span>
+                }
+                @if (sheet.drawing && sheetKind(sheet) !== 'text') {
+                <span class="text-[var(--nb-accent)]"> · trazos</span>
+                }
+                @if ((sheet.attachments || []).length) {
+                <span> · {{ (sheet.attachments || []).length }} arch.</span>
+                }
+              </span>
+            </span>
+          </span>
+        </button>
+        }
+        } @else {
+        <p class="px-2 py-8 text-center text-sm text-[var(--nb-ink-muted)]">Nada coincide.</p>
+        }
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col min-w-0 min-h-0 bg-[var(--nb-canvas)] overflow-hidden nb-main-area">
+      @if (selectedSheetRegular) {
+      <div class="flex-1 overflow-y-auto nb-main-scroll px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-5">
+        <div class="nb-main-inner flex flex-col gap-4 min-h-full w-full">
+          <div class="flex flex-col gap-2 shrink-0 nb-meta-row" [class.nb-meta-row--hidden]="focusMode()">
+            <div class="flex flex-wrap items-start justify-between gap-3 gap-y-2">
+              <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--nb-ink)] tracking-tight min-w-0 flex-1">
+                {{ selectedSheetRegular.title }}
+              </h2>
+              <span class="text-[11px] sm:text-xs text-[var(--nb-ink-muted)] tabular-nums shrink-0 self-center">
+                {{ wordCount() }} pal. · {{ plainTextLength(selectedSheetContent()) }} car.
+              </span>
+            </div>
+            <p class="text-xs text-[var(--nb-ink-muted)]">
+              Tipo:
+              @if (sheetKind(selectedSheetRegular) === 'mixed') {
+              mixta (texto + dibujo)
+              } @else if (sheetKind(selectedSheetRegular) === 'text') {
+              solo texto
+              } @else {
+              enfoque dibujo
+              }
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              @for (tag of selectedSheetRegular.tags || []; track tag) {
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-[var(--nb-surface)] border border-[var(--nb-border)] px-2.5 py-0.5 text-xs font-medium text-[var(--nb-ink)]">
+                {{ tag }}
+                <button type="button" class="opacity-60 hover:opacity-100" (click)="removeTag(tag)"
+                  aria-label="Quitar etiqueta">×</button>
+              </span>
+              }
+              <span class="flex items-center gap-1 min-w-0">
+                <input type="text" class="nb-input rounded-lg px-2 py-1 text-xs max-w-[140px]" placeholder="Etiqueta…"
+                  [value]="tagDraft()" (input)="tagDraft.set($any($event.target).value)"
+                  (keydown.enter)="addTagFromDraft(); $event.preventDefault()" />
+                <button type="button" class="nb-tool-btn px-2 py-1 rounded-lg text-xs font-semibold"
+                  (click)="addTagFromDraft()">Añadir</button>
+              </span>
+            </div>
+          </div>
+
+          <article
+            class="sheet-paper rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-paper)] shadow-[var(--nb-paper-shadow)] flex flex-col flex-1 min-h-[min(68vh,620px)] lg:min-h-[min(72vh,760px)] overflow-hidden w-full">
+            <div
+              class="nb-no-print shrink-0 flex flex-col gap-3 px-3 sm:px-4 py-3 border-b border-[var(--nb-border)] bg-[var(--nb-paper-toolbar)]">
+              <div class="nb-toolbar-row">
+                <nav class="nb-mode-segment" role="tablist" aria-label="Modo en la pizarra">
+                  <button type="button" role="tab" [attr.aria-selected]="interactionMode() === 'text'"
+                    (click)="setInteractionMode('text')" class="nb-mode-segment__btn"
+                    [class.nb-mode-segment__btn--active]="interactionMode() === 'text'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h14" />
+                    </svg>
+                    Texto
+                  </button>
+                  <button type="button" role="tab" [attr.aria-selected]="interactionMode() === 'draw'"
+                    (click)="setInteractionMode('draw')" class="nb-mode-segment__btn"
+                    [class.nb-mode-segment__btn--active]="interactionMode() === 'draw'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Dibujar
+                  </button>
+                  <button type="button" role="tab" [attr.aria-selected]="interactionMode() === 'view'"
+                    (click)="setInteractionMode('view')" class="nb-mode-segment__btn"
+                    [class.nb-mode-segment__btn--active]="interactionMode() === 'view'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Ver
+                  </button>
+                </nav>
+                @if (interactionMode() === 'text') {
+                <div class="nb-toolbar-row__second">
+                  <div class="nb-format-bar flex flex-wrap gap-1.5 mb-4 px-4 py-2">
+                    <!-- Font Family -->
+                    <select
+                      class="home-input px-3 py-1.5 rounded-lg text-sm border border-[var(--nb-border)] bg-[var(--nb-paper)] text-[var(--nb-ink)] min-w-[140px]"
+                      (change)="applyFontFamily($any($event.target).value)" [(ngModel)]="selectedFontFamily">
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="Helvetica, sans-serif">Helvetica</option>
+                      <option value="Times New Roman, serif">Times New Roman</option>
+                      <option value="Georgia, serif">Georgia</option>
+                      <option value="Courier New, monospace">Courier New</option>
+                      <option value="Monaco, monospace">Monaco</option>
+                      <option value="Verdana, sans-serif">Verdana</option>
+                      <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                      <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                      <option value="Impact, fantasy">Impact</option>
+                      <option value="Lucida Console, monospace">Lucida Console</option>
+                      <option value="Tahoma, sans-serif">Tahoma</option>
+                      <option value="Palatino, serif">Palatino</option>
+                      <option value="Garamond, serif">Garamond</option>
+                      <option value="Bookman, serif">Bookman</option>
+                      <option value="Brush Script MT, cursive">Brush Script MT</option>
+                    </select>
+
+                    <!-- Font Size -->
+                    <select
+                      class="home-input px-3 py-1.5 rounded-lg text-sm border border-[var(--nb-border)] bg-[var(--nb-paper)] text-[var(--nb-ink)] min-w-[80px]"
+                      (change)="applyFontSize($any($event.target).value)" [(ngModel)]="selectedFontSize">
+                      <option value="10px">10px</option>
+                      <option value="12px">12px</option>
+                      <option value="14px">14px</option>
+                      <option value="16px">16px</option>
+                      <option value="18px">18px</option>
+                      <option value="20px">20px</option>
+                      <option value="24px">24px</option>
+                      <option value="28px">28px</option>
+                      <option value="32px">32px</option>
+                      <option value="36px">36px</option>
+                      <option value="40px">40px</option>
+                      <option value="48px">48px</option>
+                      <option value="56px">56px</option>
+                      <option value="64px">64px</option>
+                    </select>
+
+                    <div class="w-px h-6 bg-[var(--nb-border)]"></div>
+
+                    <!-- Text Formatting -->
+                    <button type="button" (click)="applyRichFormat('bold')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border"
+                      [class.nb-tool-btn--active]="boldActive()" title="Negrito (Ctrl+B)">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" (click)="applyRichFormat('italic')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border"
+                      [class.nb-tool-btn--active]="italicActive()" title="Itálico (Ctrl+I)">
+                      <em>I</em>
+                    </button>
+                    <button type="button" (click)="applyRichFormat('underline')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border"
+                      [class.nb-tool-btn--active]="underlineActive()" title="Subliñado (Ctrl+U)">
+                      <u>U</u>
+                    </button>
+
+                    <div class="w-px h-6 bg-[var(--nb-border)]"></div>
+
+                    <!-- Text Color -->
+                    <input type="color" (change)="applyTextColor($any($event.target).value)"
+                      class="h-8 w-8 rounded-lg border border-[var(--nb-border)] bg-[var(--nb-paper)] cursor-pointer"
+                      title="Color del texto">
+
+                    <!-- Background Color -->
+                    <input type="color" (change)="applyBackgroundColor($any($event.target).value)"
+                      class="h-8 w-8 rounded-lg border border-[var(--nb-border)] bg-[var(--nb-paper)] cursor-pointer"
+                      title="Color de fondo">
+
+                    <div class="w-px h-6 bg-[var(--nb-border)]"></div>
+
+                    <!-- Alignment -->
+                    <button type="button" (click)="applyAlignment('left')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border"
+                      title="Alinear a la izquierda">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z" />
+                      </svg>
+                    </button>
+                    <button type="button" (click)="applyAlignment('center')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border" title="Centrar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h18v2H3V3zm3 4h12v2H6V7zm-3 4h18v2H3v-2zm3 4h12v2H6v-2zm-3 4h18v2H3v-2z" />
+                      </svg>
+                    </button>
+                    <button type="button" (click)="applyAlignment('right')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border"
+                      title="Alinear a la derecha">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h18v2H3V3zm6 4h12v2H9V7zm-6 4h18v2H3v-2zm6 4h12v2H9v-2zm-6 4h18v2H3v-2z" />
+                      </svg>
+                    </button>
+                    <button type="button" (click)="applyAlignment('justify')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border" title="Justificar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z" />
+                      </svg>
+                    </button>
+
+                    <div class="w-px h-6 bg-[var(--nb-border)]"></div>
+
+                    <!-- Lists -->
+                    <button type="button" (click)="applyList('unordered')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border" title="Lista desordenada">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2zM2 4h2v2H2V4zm0 5h2v2H2V9zm0 5h2v2H2v-2z" />
+                      </svg>
+                    </button>
+                    <button type="button" (click)="applyList('ordered')"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border" title="Lista ordenada">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 4v2h14V9H7zm0 4v2h14v-2H7zm0 4v2h14v-2H7z" />
+                      </svg>
+                    </button>
+
+                    <div class="w-px h-6 bg-[var(--nb-border)]"></div>
+
+                    <!-- Clear Formatting -->
+                    <button type="button" (click)="clearFormatting()"
+                      class="nb-tool-btn px-3 py-1.5 rounded-lg text-sm font-semibold border text-red-600 dark:text-red-400"
+                      title="Limpiar formato">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="M19.36 2.72l1.42 1.42L5.41 19.5 4 18.09 19.36 2.72M5.93 17.57l3.54-3.54 1.41 1.41-3.54 3.54-1.41-1.41M6.34 11L5 12.34l3.54 3.54 1.41-1.41L6.34 11m9.95 0l-3.54 3.54 1.41 1.41L18 12.34 16.66 11m-3.53-6.36l-1.41 1.41 3.54 3.54 1.41-1.41-3.54-3.54z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                }
+
+                @if (interactionMode() === 'draw') {
+                <div class="nb-toolbar-row__second">
+                  <div class="flex flex-wrap gap-2 items-center">
+                    <!-- Herramientas de dibujo -->
+                    <div class="flex gap-1 border-r border-[var(--nb-border)] pr-2">
+                      <button type="button" (click)="setDrawTool('pencil')"
+                        [class]="drawTool() === 'pencil' ? 'nb-tool-btn nb-tool-btn--active' : 'nb-tool-btn'"
+                        class="px-2.5 py-1.5 rounded-lg text-xs font-semibold" title="Lápiz">
+                        ✏️ Lápiz
+                      </button>
+                      <button type="button" (click)="setDrawTool('eraser')"
+                        [class]="drawTool() === 'eraser' ? 'nb-tool-btn nb-tool-btn--active' : 'nb-tool-btn'"
+                        class="px-2.5 py-1.5 rounded-lg text-xs font-semibold" title="Goma">
+                        🧹 Goma
+                      </button>
+                    </div>
+
+                    <!-- Controles de color y grosor -->
+                    <div class="flex items-center gap-3">
+                      <label class="flex items-center gap-1.5 text-xs text-[var(--nb-ink-muted)]">
+                        Color
+                        <input type="color" [value]="drawColor()" (input)="drawColor.set($any($event.target).value)"
+                          class="h-7 w-9 cursor-pointer rounded-lg border border-[var(--nb-border)] bg-[var(--nb-paper)]" />
+                      </label>
+
+                      <label class="flex items-center gap-1.5 text-xs text-[var(--nb-ink-muted)]">
+                        Grosor
+                        <div class="flex items-center gap-1">
+                          <button type="button" (click)="decreaseBrushSize()"
+                            class="px-1.5 py-0.5 rounded text-xs border border-[var(--nb-border)] hover:bg-[var(--nb-surface)]"
+                            title="Disminuir grosor">-</button>
+                          <span class="text-[10px] min-w-[30px] text-center">{{ brushSize() }}px</span>
+                          <button type="button" (click)="increaseBrushSize()"
+                            class="px-1.5 py-0.5 rounded text-xs border border-[var(--nb-border)] hover:bg-[var(--nb-surface)]"
+                            title="Aumentar grosor">+</button>
+                        </div>
+                      </label>
+                    </div>
+
+                    <!-- Acciones -->
+                    <button type="button" (click)="clearDrawing()"
+                      class="nb-tool-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 border-red-200 dark:border-red-900">
+                      🗑️ Limpiar
+                    </button>
+                  </div>
+
+                  <!-- Paleta de colores -->
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    @for (c of presetColors; track c) {
+                    <button type="button" (click)="pickPresetColor(c)" [title]="c"
+                      class="h-6 w-6 rounded-md border border-[var(--nb-border)] focus:outline-none focus:ring-2 focus:ring-[var(--nb-accent)] hover:scale-110 transition-transform"
+                      [style.background-color]="c"></button>
+                    }
+                  </div>
+                </div>
+                }
+
+                <!-- ÁREA DE TRABAJO SEPARADA -->
+                <div class="flex-1 flex flex-col gap-4">
+
+                  <!-- SECCIÓN DE TEXTO -->
+                  @if (interactionMode() === 'text') {
+                  <div
+                    class="flex-1 flex flex-col rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-paper)] shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-[var(--nb-accent)]">
+                    
+                    <div class="px-4 py-3 border-b border-[var(--nb-border)] bg-[var(--nb-paper-toolbar)]">
+                      <h3 class="text-sm font-semibold text-[var(--nb-ink)] flex items-center gap-2">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Modo Texto
+                      </h3>
+                    </div>
+                    
+                    <div #editor
+                      class="flex-1 overflow-y-auto px-6 py-6 text-[15px] leading-relaxed outline-none min-h-[400px] m-2"
+                      contenteditable="true" data-placeholder="Escribe tus notas aquí..."
+                      (input)="onEditorInput($event)" (change)="onEditorDelegatedChange($event)"
+                      (keydown)="onEditorKeyDown($event)" (mouseup)="onEditorSelectionChange()"
+                      (keyup)="onEditorSelectionChange()" (focus)="onEditorSelectionChange()"></div>
+                  </div>
+                  }
+
+                  <!-- SECCIÓN DE DIBUJO -->
+                  @if (interactionMode() === 'draw') {
+                  <div
+                    class="flex-1 flex flex-col rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-paper)] shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-[var(--nb-accent)]"
+                    [class.draw-fullscreen]="fullscreenDrawMode()">
+                    @if (!fullscreenDrawMode()) {
+                    <div class="px-4 py-3 border-b border-[var(--nb-border)] bg-[var(--nb-paper-toolbar)]">
+                      <h3 class="text-sm font-semibold text-[var(--nb-ink)] flex items-center gap-2">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Modo Dibujo
+                      </h3>
+                    </div>
+                    }
+                    <div class="flex-1 relative bg-white flex" [class.draw-fullscreen-content]="fullscreenDrawMode()" style="min-height: 400px;">
+                      @if (fullscreenDrawMode()) {
+                      <!-- Fullscreen Drawing Controls Panel -->
+                      <div class="draw-controls-panel">
+                        <div class="draw-controls-header">
+                          <h4 class="text-sm font-semibold text-[var(--nb-ink)] mb-3">Herramientas de Dibujo</h4>
+                          <button type="button" (click)="toggleFullscreenDrawMode()" 
+                            class="nb-tool-btn px-2 py-1.5 rounded-lg text-xs font-semibold mb-4 w-full"
+                            title="Salir de pantalla completa">
+                            ✕ Salir
+                          </button>
+                        </div>
+                        
+                        <!-- Drawing Tools -->
+                        <div class="draw-controls-section">
+                          <div class="flex gap-1 mb-3">
+                            <button type="button" (click)="setDrawTool('pencil')"
+                              [class]="drawTool() === 'pencil' ? 'nb-tool-btn nb-tool-btn--active' : 'nb-tool-btn'"
+                              class="px-2 py-1.5 rounded-lg text-xs font-semibold flex-1" title="Lápiz">
+                              ✏️
+                            </button>
+                            <button type="button" (click)="setDrawTool('eraser')"
+                              [class]="drawTool() === 'eraser' ? 'nb-tool-btn nb-tool-btn--active' : 'nb-tool-btn'"
+                              class="px-2 py-1.5 rounded-lg text-xs font-semibold flex-1" title="Goma">
+                              🧹
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Color and Size Controls -->
+                        <div class="draw-controls-section">
+                          <div class="mb-3">
+                            <label class="flex items-center gap-2 text-xs text-[var(--nb-ink-muted)] mb-2">
+                              Color
+                              <input type="color" [value]="drawColor()" (input)="drawColor.set($any($event.target).value)"
+                                class="h-6 w-full cursor-pointer rounded border border-[var(--nb-border)] bg-[var(--nb-paper)]" />
+                            </label>
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="flex items-center gap-2 text-xs text-[var(--nb-ink-muted)]">
+                              Grosor
+                              <div class="flex items-center gap-1 flex-1">
+                                <button type="button" (click)="decreaseBrushSize()"
+                                  class="px-1 py-0.5 rounded text-xs border border-[var(--nb-border)] hover:bg-[var(--nb-surface)]">-</button>
+                                <span class="text-[10px] min-w-[30px] text-center">{{ brushSize() }}px</span>
+                                <button type="button" (click)="increaseBrushSize()"
+                                  class="px-1 py-0.5 rounded text-xs border border-[var(--nb-border)] hover:bg-[var(--nb-surface)]">+</button>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Color Palette -->
+                        <div class="draw-controls-section">
+                          <div class="grid grid-cols-4 gap-1 mb-3">
+                            @for (c of presetColors; track c) {
+                            <button type="button" (click)="pickPresetColor(c)" [title]="c"
+                              class="h-6 w-full rounded border border-[var(--nb-border)] hover:scale-110 transition-transform"
+                              [style.background-color]="c"></button>
+                            }
+                          </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="draw-controls-section">
+                          <button type="button" (click)="clearDrawing()"
+                            class="nb-tool-btn px-2 py-1.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 w-full">
+                            🗑️ Limpiar
+                          </button>
+                        </div>
+                      </div>
+                      }
+                      
+                      <!-- Canvas Container -->
+                      <div class="flex-1 relative">
+                        <canvas #drawCanvas
+                          class="absolute inset-0 w-full h-full touch-none block bg-white border border-gray-200"
+                          [class.eraser-cursor]="drawTool() === 'eraser'"
+                          [style.cursor]="drawTool() === 'eraser' ? 'none' : 'crosshair'" [style.display]="'block'"
+                          [style.visibility]="'visible'" [style.background]="'#ffffff'"
+                          (pointerdown)="onDrawPointerDown($event)" (pointermove)="onDrawPointerMove($event)"
+                          (pointerup)="onDrawPointerUp($event)" (pointercancel)="onDrawPointerUp($event)"></canvas>
+                      </div>
+                    </div>
+                  </div>
+                  }
+
+                  <!-- SECCIÓN DE VISTA -->
+                  @if (interactionMode() === 'view') {
+                  <div
+                    class="flex-1 flex flex-col rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-paper)] shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-[var(--nb-accent)]">
+                    <div class="px-4 py-3 border-b border-[var(--nb-border)] bg-[var(--nb-paper-toolbar)]">
+                      <h3 class="text-sm font-semibold text-[var(--nb-ink)] flex items-center gap-2">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Modo Vista
+                      </h3>
+                    </div>
+                    <div class="flex-1 overflow-y-auto px-6 py-6 text-[15px] leading-relaxed min-h-[400px]">
+                      <div class="view-mode-content" [innerHTML]="selectedSheetContent() | markdown"></div>
+                      @if (sheetShowsCanvas()) {
+                      <div class="mt-4 border-t border-[var(--nb-border)] pt-4">
+                        <img [src]="selectedSheet()!.drawing" alt="Dibujo"
+                          class="max-w-full h-auto rounded-lg shadow-sm" />
+                      </div>
+                      }
+                    </div>
+                  </div>
+                  }
+                </div>
+
+                <!-- Barra de Archivos Compacta -->
+                <div class="border-t border-[var(--nb-border)] bg-[var(--nb-paper-toolbar)] p-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <input #attachInput type="file" multiple class="sr-only"
+                        accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"
+                        (change)="onAttachmentFilesSelected($event)" />
+                      <button type="button" (click)="triggerAttachmentPicker()"
+                        class="text-xs px-2 py-1 rounded bg-[var(--nb-accent)] text-white hover:bg-[var(--nb-accent-hover)] transition-colors">
+                        📎 Adjuntar
+                      </button>
+                      @if ((selectedSheet()!.attachments || []).length > 0) {
+                      <span class="text-xs text-[var(--nb-ink-muted)]">
+                        {{ (selectedSheet()!.attachments || []).length }} archivo(s)
+                      </span>
+                      }
+                    </div>
+                    @if ((selectedSheet()!.attachments || []).length > 0) {
+                    <button type="button" 
+                      class="text-xs text-[var(--nb-ink-muted)] hover:text-[var(--nb-ink)] transition-colors"
+                      (click)="toggleAttachmentsList()">
+                      {{ showAttachmentsList() ? 'Ocultar' : 'Mostrar' }} archivos
+                    </button>
+                    }
+                  </div>
+                  
+                  <!-- Lista de archivos (collapsible) -->
+                  @if (showAttachmentsList() && (selectedSheet()!.attachments || []).length > 0) {
+                  <div class="mt-2 pt-2 border-t border-[var(--nb-border)]">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      @for (att of selectedSheet()!.attachments || []; track att.id) {
+                      <div class="flex items-center gap-2 p-1 rounded bg-[var(--nb-surface-subtle)]">
+                        @if (isImageMime(att.mimeType)) {
+                        <img [src]="att.dataUrl" [alt]="att.name" class="w-8 h-8 object-cover rounded" />
+                        } @else {
+                        <span class="w-8 h-8 flex items-center justify-center text-xs bg-[var(--nb-border)] rounded">📄</span>
+                        }
+                        <div class="flex-1 min-w-0">
+                          <div class="text-xs truncate text-[var(--nb-ink)]" [title]="att.name">{{ att.name }}</div>
+                        </div>
+                        <button type="button" class="text-red-500 text-xs hover:text-red-700"
+                          (click)="removeAttachment(att)">×</button>
+                      </div>
+                      }
+                    </div>
+                  </div>
+                  }
+                </div>
+
+                <p class="text-xs text-[var(--nb-ink-muted)] px-1 shrink-0 mt-4">
+                  Listas (modo <strong class="text-[var(--nb-accent)]">Texto</strong>): al inicio de línea
+                  <code class="nb-code">*</code> + espacio,
+                  <code class="nb-code">1.</code> + espacio,
+                  <code class="nb-code">[]</code> + espacio.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+      } @else {
+      <div class="flex-1 flex items-center justify-center p-8">
+        <div class="text-center max-w-sm">
+          <p class="text-[var(--nb-ink-muted)] font-medium">Elige una hoja</p>
+          <p class="text-sm text-[var(--nb-ink-faint)] mt-1">Clic derecho: fijar, renombrar, papelera.</p>
+        </div>
+      </div>
+      }
+    </main>
+
+    <!-- Modal de Atajos -->
+    @if (showShortcutsModal()) {
+    <div class="fixed inset-0 z-[60] bg-black/40 nb-no-print" (click)="showShortcutsModal.set(false)"></div>
+    <div
+      class="fixed left-1/2 top-1/2 z-[61] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-paper)] p-6 shadow-xl nb-no-print"
+      role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title" class="text-lg font-bold text-[var(--nb-ink)] mb-3">Atajos y consejos</h2>
+      <ul class="text-sm text-[var(--nb-ink-muted)] space-y-2.5 list-none p-0 m-0">
+        <li><kbd class="nb-kbd">Ctrl</kbd> + <kbd class="nb-kbd">/</kbd> — abrir o cerrar esta ayuda</li>
+        <li><kbd class="nb-kbd">Alt</kbd> + <kbd class="nb-kbd">←</kbd> / <kbd class="nb-kbd">→</kbd> — hoja
+          anterior o
+          siguiente (lista filtrada)</li>
+        <li><kbd class="nb-kbd">Ctrl</kbd> + <kbd class="nb-kbd">Shift</kbd> + <kbd class="nb-kbd">L</kbd> —
+          mostrar u
+          ocultar lista de hojas</li>
+        <li><kbd class="nb-kbd">Ctrl</kbd> + <kbd class="nb-kbd">Shift</kbd> + <kbd class="nb-kbd">F</kbd> —
+          modo foco
+          (más espacio para la hoja)</li>
+        <li><kbd class="nb-kbd">Esc</kbd> — salir de modo foco o cerrar ayuda</li>
+        <li class="pt-2 border-t border-[var(--nb-border)] mt-2">Modo <strong
+            class="text-[var(--nb-ink)]">Texto</strong>:
+          <kbd class="nb-kbd">Ctrl</kbd>+<kbd class="nb-kbd">B</kbd> / <kbd class="nb-kbd">I</kbd> / <kbd
+            class="nb-kbd">U</kbd> — negrita, cursiva, subrayado
+        </li>
+        <li>Listas: al inicio de línea <code class="nb-code">*</code>, <code class="nb-code">1.</code> o
+          <code class="nb-code">[]</code> y espacio
+        </li>
+        <li>Modo <strong class="text-[var(--nb-ink)]">Dibujar</strong>: con el puntero en el lienzo, <kbd
+            class="nb-kbd">Ctrl</kbd>+<kbd class="nb-kbd">+</kbd> / <kbd class="nb-kbd">−</kbd> grosor</li>
+      </ul>
+      <button type="button" class="nb-primary-btn w-full mt-5 py-2.5 rounded-xl text-sm font-semibold"
+        (click)="showShortcutsModal.set(false)">
+        Cerrar
+      </button>
+    </div>
+    }
+
+    <!-- Menú Contextual -->
+    @if (contextMenuSheet()) {
+    <div class="fixed inset-0 z-40" (click)="closeContextMenu()"
+      (contextmenu)="$event.preventDefault(); closeContextMenu()"></div>
+    <div
+      class="fixed nb-context-menu rounded-xl shadow-xl z-50 min-w-[200px] border border-[var(--nb-border)] bg-[var(--nb-paper)] py-1"
+      [style.left.px]="contextMenuPos()?.x" [style.top.px]="contextMenuPos()?.y">
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-[var(--nb-ink)]"
+        (click)="togglePinSheet(contextMenuSheet()!)">
+        {{ contextMenuSheet()!.pinned ? 'Quitar fijación' : 'Fijar arriba' }}
+      </button>
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-[var(--nb-ink)]"
+        (click)="duplicateSheet(contextMenuSheet()!)">
+        Duplicar hoja
+      </button>
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-[var(--nb-ink)]"
+        (click)="printCurrentSheet()">
+        Imprimir hoja
+      </button>
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-[var(--nb-ink)]"
+        (click)="exportCurrentSheetHtml()">
+        Descargar HTML
+      </button>
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-[var(--nb-ink)]"
+        (click)="editSheet(contextMenuSheet()!)">
+        Editar nombre
+      </button>
+      <button type="button" class="nb-context-item w-full px-4 py-2.5 text-left text-sm text-red-600 dark:text-red-400"
+        (click)="deleteSheet(contextMenuSheet()!)">
+        Eliminar hoja
+      </button>
+    </div>
+    }
+
+  </div>
+  } @else {
+  <div class="flex-1 flex items-center justify-center bg-[var(--nb-canvas)] p-8">
+    <p class="text-[var(--nb-ink-muted)]">Cuaderno no encontrado.</p>
+  </div>
+  }
+
+  <!-- Chatbot IA -->
+  <app-chatbot></app-chatbot>
+</div>

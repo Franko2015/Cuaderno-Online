@@ -1,0 +1,398 @@
+<div class="home-app min-h-screen bg-[var(--home-bg)] text-[var(--home-ink)]">
+  <!-- Professional Header -->
+  <header class="home-header border-b border-[var(--home-border)] bg-gradient-to-r from-[var(--home-header)] to-[var(--home-surface)]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <div class="flex items-center justify-between">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2">
+            <div class="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-[var(--home-accent)] to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+              <span class="text-white text-sm sm:text-xl font-bold">M</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h1 class="text-xl sm:text-3xl font-bold tracking-tight text-[var(--home-ink)] truncate">Mis cuadernos</h1>
+              <p class="text-xs sm:text-sm text-[var(--home-ink-muted)] hidden sm:block">Gestión local de notas y documentos</p>
+            </div>
+          </div>
+          <p class="text-xs sm:text-sm text-[var(--home-ink-muted)] max-w-2xl hidden sm:block">
+            Tu espacio de trabajo personal con almacenamiento local seguro. Todos los datos se guardan en tu dispositivo.
+          </p>
+        </div>
+        
+        <!-- Theme Toggle Button - Hidden on mobile, shown in nav -->
+        <button (click)="toggleTheme()" 
+          class="hidden sm:flex nb-primary-btn px-4 py-2 rounded-xl text-sm font-semibold shadow-sm"
+          [class.nb-primary-btn--dark]="themeService.isDark()"
+          [class.nb-primary-btn--light]="!themeService.isDark()">
+          @if (themeService.isDark()) {
+            <span>☀️ Claro</span>
+          } @else {
+            <span>🌙 Oscuro</span>
+          }
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-20 sm:pb-8">
+    <!-- Action Bar -->
+    <section class="mb-6 sm:mb-8">
+      <div class="bg-[var(--home-card)] rounded-xl sm:rounded-2xl border border-[var(--home-border)] shadow-lg p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-[var(--home-ink)] mb-3 sm:mb-4">Gestión de Cuadernos</h3>
+        <div class="flex flex-wrap gap-2 sm:gap-3">
+          <button (click)="openCreateNotebookModal()" 
+            class="home-btn-primary px-3 sm:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm shadow-sm hover:shadow-md transition-shadow flex items-center gap-1 sm:gap-2">
+            <span>➕</span> <span class="hidden sm:inline">Nuevo cuaderno</span>
+          </button>
+          <button (click)="openTrashModal()" 
+            class="home-btn-secondary px-3 sm:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm border flex items-center gap-1 sm:gap-2 hover:shadow-md transition-shadow">
+            <span>🗑️</span> <span class="hidden sm:inline">Papelera</span>
+            @if (trashTotalCount() > 0) {
+              <span class="home-badge">{{ trashTotalCount() }}</span>
+            }
+          </button>
+          <button (click)="exportBackup()" 
+            class="home-btn-secondary px-3 sm:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm border flex items-center gap-1 sm:gap-2 hover:shadow-md transition-shadow">
+            <span>💾</span> <span class="hidden sm:inline">Copia</span>
+          </button>
+          <label class="home-btn-secondary px-3 sm:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm border cursor-pointer inline-flex items-center gap-1 sm:gap-2 hover:shadow-md transition-shadow">
+            <span>📁</span> <span class="hidden sm:inline">Restaurar</span>
+            <input type="file" accept="application/json,.json" class="sr-only" (change)="onImportBackupSelected($event)" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trash Section (when expanded) -->
+    @if (showTrash()) {
+      <section class="mb-8">
+        <div class="bg-[var(--home-trash-bg)] rounded-2xl border border-[var(--home-trash-border)] shadow-lg overflow-hidden">
+          <div class="p-6 border-b border-[var(--home-trash-border)]">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-[var(--home-trash-title)] flex items-center gap-2">
+                  <span>🗑️</span> Papelera
+                </h3>
+                <p class="text-sm text-[var(--home-trash-muted)] mt-1">
+                  Elementos eliminados que puedes restaurar o borrar permanentemente.
+                </p>
+              </div>
+              <div class="flex gap-2">
+                <button (click)="emptyEntireTrash()" [disabled]="trashTotalCount() === 0"
+                  class="home-btn-danger px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none">
+                  Vaciar papelera
+                </button>
+                <button (click)="toggleTrash()" 
+                  class="text-sm px-3 py-2 rounded-lg border border-[var(--home-border)] hover:bg-[var(--home-surface)]">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          @if (trashedNotebooks().length > 0 || trashedSheets().length > 0) {
+            <div class="p-6 border-b border-[var(--home-trash-border)]">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" [value]="trashSearch()" (input)="setTrashSearch($any($event.target).value)"
+                  placeholder="Buscar elementos eliminados..." 
+                  class="home-input flex-1 px-4 py-2.5 rounded-xl text-sm" />
+                <select class="home-select px-4 py-2.5 rounded-xl text-sm min-w-[150px]"
+                  [value]="trashSort()" (change)="setTrashSort($any($event.target).value)">
+                  <option value="newest">Más recientes</option>
+                  <option value="oldest">Más antiguos</option>
+                </select>
+              </div>
+            </div>
+          }
+          
+          <div class="p-6">
+            @if (trashedNotebooks().length === 0 && trashedSheets().length === 0) {
+              <div class="text-center py-8">
+                <span class="text-4xl opacity-50">🗑️</span>
+                <p class="text-[var(--home-trash-muted)] mt-2">No hay elementos en la papelera.</p>
+              </div>
+            } @else if (filteredTrashedNotebooks().length === 0 && filteredTrashedSheets().length === 0) {
+              <div class="text-center py-8">
+                <span class="text-4xl opacity-50">🔍</span>
+                <p class="text-[var(--home-trash-muted)] mt-2">No se encontraron elementos.</p>
+              </div>
+            } @else {
+              <div class="space-y-6">
+                @if (filteredTrashedNotebooks().length > 0) {
+                  <div>
+                    <h4 class="font-semibold text-[var(--home-trash-title)] mb-3 flex items-center gap-2">
+                      <span>📓</span> Cuadernos ({{ filteredTrashedNotebooks().length }})
+                    </h4>
+                    <div class="grid gap-3">
+                      @for (trash of pagedTrashedNotebooks(); track trash.id) {
+                        <div class="bg-[var(--home-card)] rounded-xl p-4 border border-[var(--home-border)] flex items-center justify-between">
+                          <div>
+                            <p class="font-semibold text-[var(--home-ink)]">{{ trash.name }}</p>
+                            <p class="text-sm text-[var(--home-ink-muted)]">{{ trash.sheets.length }} hojas · {{ formatDate(trash.deletedAt) }}</p>
+                          </div>
+                          <div class="flex gap-2">
+                            <button (click)="restoreTrashedNotebook(trash)" 
+                              class="home-btn-restore px-3 py-2 rounded-lg text-xs font-semibold">
+                              Restaurar
+                            </button>
+                            <button (click)="deleteNotebookPermanently(trash)" 
+                              class="home-btn-danger-outline px-3 py-2 rounded-lg text-xs font-semibold">
+                              Borrar
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+                
+                @if (filteredTrashedSheets().length > 0) {
+                  <div>
+                    <h4 class="font-semibold text-[var(--home-trash-title)] mb-3 flex items-center gap-2">
+                      <span>📄</span> Hojas sueltas ({{ filteredTrashedSheets().length }})
+                    </h4>
+                    <div class="grid gap-3">
+                      @for (trash of pagedTrashedSheets(); track trash.id) {
+                        <div class="bg-[var(--home-card)] rounded-xl p-4 border border-[var(--home-border)] flex items-center justify-between">
+                          <div>
+                            <p class="font-semibold text-[var(--home-ink)]">{{ trash.title }}</p>
+                            <p class="text-sm text-[var(--home-ink-muted)]">{{ sheetNotebookLabel(trash) }} · {{ formatDate(trash.deletedAt) }}</p>
+                          </div>
+                          <div class="flex gap-2">
+                            <button (click)="restoreTrashedSheet(trash)" 
+                              class="home-btn-restore px-3 py-2 rounded-lg text-xs font-semibold">
+                              Restaurar
+                            </button>
+                            <button (click)="deleteSheetPermanently(trash)" 
+                              class="home-btn-danger-outline px-3 py-2 rounded-lg text-xs font-semibold">
+                              Borrar
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Notebooks Grid -->
+    <section>
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-[var(--home-ink)] mb-2">Tus Cuadernos</h2>
+        <p class="text-[var(--home-ink-muted)]">Gestiona tus documentos de forma organizada y segura.</p>
+      </div>
+      
+      @if (notebooks().length === 0) {
+        <div class="bg-[var(--home-card)] rounded-2xl border-2 border-dashed border-[var(--home-border)] p-12 text-center">
+          <span class="text-6xl opacity-30">📚</span>
+          <h3 class="text-xl font-semibold text-[var(--home-ink)] mt-4 mb-2">Comienza tu primer cuaderno</h3>
+          <p class="text-[var(--home-ink-muted)] mb-6">Crea tu primer cuaderno para empezar a organizar tus notas.</p>
+          <button (click)="openCreateNotebookModal()" 
+            class="home-btn-primary px-6 py-3 rounded-xl font-semibold shadow-sm hover:shadow-md transition-shadow">
+            ➕ Crear cuaderno
+          </button>
+        </div>
+      } @else {
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          @for (notebook of notebooks(); track notebook.id) {
+            <article class="home-notebook-card group bg-[var(--home-card)] rounded-2xl border border-[var(--home-border)] overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              (contextmenu)="onNotebookContextMenu(notebook, $event)">
+              <div class="home-notebook-strip h-1 w-full"></div>
+              <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-[var(--home-accent)] to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                    <span class="text-white text-lg font-bold">{{ notebook.name.charAt(0).toUpperCase() }}</span>
+                  </div>
+                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button (click)="editNotebook(notebook)" 
+                      class="p-2 rounded-lg hover:bg-[var(--home-surface)] transition-colors"
+                      title="Editar nombre">
+                      ✏️
+                    </button>
+                    <button (click)="moveNotebookToTrash(notebook)" 
+                      class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors"
+                      title="Mover a papelera">
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+                
+                <h3 class="text-lg font-bold text-[var(--home-ink)] truncate mb-2">{{ notebook.name }}</h3>
+                
+                <div class="flex items-center gap-4 text-sm text-[var(--home-ink-muted)] mb-4">
+                  <span class="flex items-center gap-1">
+                    <span>📄</span> {{ notebook.sheets.length }} hojas
+                  </span>
+                </div>
+                
+                <button (click)="openNotebook(notebook)" 
+                  class="home-open-btn w-full py-3 rounded-xl text-sm font-semibold hover:bg-[var(--home-accent)] hover:text-white transition-colors">
+                  Abrir cuaderno
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+  </main>
+
+  <!-- Create Notebook Modal -->
+  @if (showCreateNotebookModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" (click)="closeCreateNotebookModal()"></div>
+    <div class="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] p-6 shadow-2xl"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-[var(--home-ink)] flex items-center gap-2">
+          <span>📓</span> Nuevo cuaderno
+        </h3>
+        <button (click)="closeCreateNotebookModal()" 
+          class="p-2 rounded-lg hover:bg-[var(--home-surface)] transition-colors">
+          <span class="text-xl">✕</span>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-[var(--home-ink)] mb-2">Nombre del cuaderno</label>
+          <input type="text" 
+            [(ngModel)]="newNotebookName"
+            placeholder="Ej: Apuntes de clase, Proyectos personales..."
+            class="home-input w-full px-4 py-3 rounded-xl text-sm"
+            (keydown.enter)="confirmCreateNotebook()"
+            (keydown.esc)="closeCreateNotebookModal()">
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-2">
+          <button (click)="closeCreateNotebookModal()" 
+            class="home-btn-secondary px-4 py-2 rounded-xl text-sm font-semibold">
+            Cancelar
+          </button>
+          <button (click)="confirmCreateNotebook()" 
+            [disabled]="!newNotebookName().trim()"
+            class="home-btn-primary px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+            Crear cuaderno
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Notebook Modal -->
+  @if (showEditNotebookModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" (click)="closeEditNotebookModal()"></div>
+    <div class="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] p-6 shadow-2xl"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-[var(--home-ink)] flex items-center gap-2">
+          <span>✏️</span> Editar cuaderno
+        </h3>
+        <button (click)="closeEditNotebookModal()" 
+          class="p-2 rounded-lg hover:bg-[var(--home-surface)] transition-colors">
+          <span class="text-xl">✕</span>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-[var(--home-ink)] mb-2">Nombre del cuaderno</label>
+          <input type="text" 
+            [(ngModel)]="editNotebookName"
+            placeholder="Ej: Apuntes de clase, Proyectos personales..."
+            class="home-input w-full px-4 py-3 rounded-xl text-sm"
+            (keydown.enter)="confirmEditNotebook()"
+            (keydown.esc)="closeEditNotebookModal()">
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-2">
+          <button (click)="closeEditNotebookModal()" 
+            class="home-btn-secondary px-4 py-2 rounded-xl text-sm font-semibold">
+            Cancelar
+          </button>
+          <button (click)="confirmEditNotebook()" 
+            [disabled]="!editNotebookName().trim()"
+            class="home-btn-primary px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+            Guardar cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Notebook Modal -->
+  @if (showDeleteNotebookModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" (click)="closeDeleteNotebookModal()"></div>
+    <div class="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] p-6 shadow-2xl"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+          <span>🗑️</span> Eliminar cuaderno
+        </h3>
+        <button (click)="closeDeleteNotebookModal()" 
+          class="p-2 rounded-lg hover:bg-[var(--home-surface)] transition-colors">
+          <span class="text-xl">✕</span>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+          <p class="text-sm text-red-800 dark:text-red-200">
+            <strong>¿Estás seguro?</strong> El cuaderno "<span class="font-semibold">{{ notebookToDelete()?.name }}</span>" y todas sus hojas serán movidos a la papelera.
+          </p>
+          <p class="text-xs text-red-600 dark:text-red-300 mt-2">
+            Podrás restaurarlo más tarde desde la papelera si lo necesitas.
+          </p>
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-2">
+          <button (click)="closeDeleteNotebookModal()" 
+            class="home-btn-secondary px-4 py-2 rounded-xl text-sm font-semibold">
+            Cancelar
+          </button>
+          <button (click)="confirmDeleteNotebook()" 
+            class="home-btn-danger px-4 py-2 rounded-xl text-sm font-semibold">
+            Mover a papelera
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Context Menu -->
+  @if (notebookContextMenu()) {
+    <div class="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" 
+      (click)="closeNotebookContextMenu()" 
+      (contextmenu)="$event.preventDefault(); closeNotebookContextMenu()"></div>
+    <div class="fixed rounded-xl shadow-2xl z-50 min-w-[200px] bg-[var(--home-card)] border border-[var(--home-border)] py-2 overflow-hidden"
+      [style.left.px]="notebookContextMenuPos()?.x" 
+      [style.top.px]="notebookContextMenuPos()?.y">
+      <button (click)="openEditNotebookModal(notebookContextMenu()!)" 
+        class="w-full px-4 py-3 text-left text-sm text-[var(--home-ink)] hover:bg-[var(--home-surface)] transition-colors flex items-center gap-2">
+        <span>✏️</span> Editar nombre
+      </button>
+      <button (click)="openDeleteNotebookModal(notebookContextMenu()!)" 
+        class="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+        <span>🗑️</span> Mover a papelera
+      </button>
+    </div>
+  }
+
+  <!-- Trash Modal -->
+  <app-trash-modal 
+    [isOpen]="showTrashModal()" 
+    (closeModal)="closeTrashModal()">
+  </app-trash-modal>
+
+  <!-- Mobile Navigation -->
+  <app-mobile-nav 
+    [currentRoute]="currentRoute()"
+    [notebookCount]="notebooks().length"
+    [trashCount]="trashTotalCount()"
+    (openTrashModal)="openTrashModal()"
+    (toggleTheme)="toggleTheme()">
+  </app-mobile-nav>
+</div>

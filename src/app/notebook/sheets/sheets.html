@@ -1,0 +1,19 @@
+<div class="container mx-auto p-4">
+  @if (sheet()) {
+    <h1 class="text-2xl font-bold mb-4">{{ sheet()!.title }}</h1>
+    <div #editor contenteditable="true" class="border border-gray-300 dark:border-gray-600 p-4 min-h-96 bg-white dark:bg-gray-800 text-black dark:text-white" (input)="saveContent()"></div>
+    @if (showOptions()) {
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded shadow-lg">
+          <h2 class="text-lg font-bold mb-2">Insertar</h2>
+          <button (click)="insertTable()" class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Tabla</button>
+          <button (click)="insertHorizontalLine()" class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Línea Horizontal</button>
+          <button (click)="insertVerticalLine()" class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Línea Vertical</button>
+          <button (click)="closeOptions()" class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Cancelar</button>
+        </div>
+      </div>
+    }
+  } @else {
+    <p>Hoja no encontrada.</p>
+  }
+</div>

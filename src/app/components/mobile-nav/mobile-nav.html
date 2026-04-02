@@ -1,0 +1,24 @@
+<nav class="mobile-nav">
+  <div class="nav-item" 
+       [class.active]="isActive('')" 
+       (click)="navigateToHome()">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">Inicio</div>
+    @if (notebookCount > 0) {
+      <div class="nav-badge">{{ notebookCount }}</div>
+    }
+  </div>
+  
+  <div class="nav-item" (click)="openTrashModal.emit()">
+    <div class="nav-icon">🗑️</div>
+    <div class="nav-label">Papelera</div>
+    @if (trashCount > 0) {
+      <div class="nav-badge trash-badge">{{ trashCount }}</div>
+    }
+  </div>
+  
+  <div class="nav-item" (click)="toggleTheme.emit()">
+    <div class="nav-icon">🌓</div>
+    <div class="nav-label">Tema</div>
+  </div>
+</nav>

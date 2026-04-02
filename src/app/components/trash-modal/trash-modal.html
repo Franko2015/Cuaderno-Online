@@ -1,0 +1,103 @@
+<div *ngIf="isOpen" class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🗑️ Papelera</h2>
+      <button class="close-btn" (click)="onClose()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'sheets'"
+          (click)="activeTab = 'sheets'"
+        >
+          Hojas ({{ trashedSheets.length }})
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'notebooks'"
+          (click)="activeTab = 'notebooks'"
+        >
+          Cuadernos ({{ trashedNotebooks.length }})
+        </button>
+      </div>
+
+      <!-- Trash Actions -->
+      <div class="trash-actions">
+        <button 
+          *ngIf="activeTab === 'sheets' && trashedSheets.length > 0"
+          class="empty-btn"
+          (click)="emptySheetsTrash()"
+        >
+          🗑️ Vaciar papelera de hojas
+        </button>
+        <button 
+          *ngIf="activeTab === 'notebooks' && trashedNotebooks.length > 0"
+          class="empty-btn"
+          (click)="emptyNotebooksTrash()"
+        >
+          🗑️ Vaciar papelera de cuadernos
+        </button>
+        <button 
+          *ngIf="(trashedSheets.length + trashedNotebooks.length) > 0"
+          class="empty-all-btn"
+          (click)="emptyAllTrash()"
+        >
+          ⚠️ Vaciar toda la papelera
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="trash-content">
+        <!-- Trashed Sheets -->
+        <div *ngIf="activeTab === 'sheets'" class="trash-list">
+          <div *ngIf="trashedSheets.length === 0" class="empty-message">
+            No hay hojas en la papelera
+          </div>
+          <div *ngFor="let sheet of trashedSheets" class="trash-item">
+            <div class="item-info">
+              <h4>{{ sheet.title }}</h4>
+              <p class="item-meta">
+                Cuaderno: {{ notebookService.getNotebook(sheet.notebookId)?.name || 'Desconocido' }}
+              </p>
+              <p class="item-date">Eliminado: {{ formatDate(sheet.deletedAt) }}</p>
+              <p *ngIf="sheet.content" class="item-preview">{{ sheet.content | slice:0:100 }}{{ sheet.content.length > 100 ? '...' : '' }}</p>
+            </div>
+            <div class="item-actions">
+              <button class="restore-btn" (click)="restoreSheet(sheet.id)">
+                ↩️ Restaurar
+              </button>
+              <button class="delete-permanent-btn" (click)="deleteSheetPermanently(sheet.id)">
+                🗑️ Eliminar permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trashed Notebooks -->
+        <div *ngIf="activeTab === 'notebooks'" class="trash-list">
+          <div *ngIf="trashedNotebooks.length === 0" class="empty-message">
+            No hay cuadernos en la papelera
+          </div>
+          <div *ngFor="let notebook of trashedNotebooks" class="trash-item">
+            <div class="item-info">
+              <h4>{{ notebook.name }}</h4>
+              <p class="item-meta">{{ notebook.sheets.length }} hojas</p>
+              <p class="item-date">Eliminado: {{ formatDate(notebook.deletedAt) }}</p>
+            </div>
+            <div class="item-actions">
+              <button class="restore-btn" (click)="restoreNotebook(notebook.id)">
+                ↩️ Restaurar
+              </button>
+              <button class="delete-permanent-btn" (click)="deleteNotebookPermanently(notebook.id)">
+                🗑️ Eliminar permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

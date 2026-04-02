@@ -1,0 +1,476 @@
+/* Variables de tema (cuaderno) */
+.notebook-app {
+  --nb-canvas: #ebe8e3;
+  --nb-sidebar: #e3dfd8;
+  --nb-header: rgba(253, 252, 250, 0.92);
+  --nb-paper: #fdfcfa;
+  --nb-paper-toolbar: #f5f3ef;
+  --nb-surface: #edeae4;
+  --nb-surface-subtle: #f0ece6;
+  --nb-border: #d4cec4;
+  --nb-ink: #1c1917;
+  --nb-ink-muted: #57534e;
+  --nb-ink-faint: #78716c;
+  --nb-accent: #0d9488;
+  --nb-accent-hover: #0f766e;
+  --nb-primary-contrast: #fff;
+  --nb-paper-shadow: 0 1px 3px rgba(28, 25, 23, 0.06), 0 12px 40px rgba(28, 25, 23, 0.04);
+  /* Zona de escritura/dibujo: siempre buen contraste (papel claro + tinta oscura) */
+  --nb-board-bg: #fafaf8;
+  --nb-board-ink: #1c1917;
+  --nb-board-muted: #57534e;
+  --nb-board-placeholder: #78716c;
+}
+
+/* View Mode Specific Styles */
+.notebook-app .view-mode-content {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: var(--nb-ink) !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+.notebook-app .view-mode-content p {
+  margin: 0 0 12px 0 !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: var(--nb-ink) !important;
+}
+
+.notebook-app .view-mode-content h1,
+.notebook-app .view-mode-content h2,
+.notebook-app .view-mode-content h3,
+.notebook-app .view-mode-content h4,
+.notebook-app .view-mode-content h5,
+.notebook-app .view-mode-content h6 {
+  margin: 16px 0 8px 0 !important;
+  font-weight: 600 !important;
+  color: var(--nb-ink) !important;
+  line-height: 1.3 !important;
+}
+
+.notebook-app .view-mode-content h1 { font-size: 20px !important; }
+.notebook-app .view-mode-content h2 { font-size: 18px !important; }
+.notebook-app .view-mode-content h3 { font-size: 16px !important; }
+.notebook-app .view-mode-content h4 { font-size: 15px !important; }
+.notebook-app .view-mode-content h5 { font-size: 14px !important; }
+.notebook-app .view-mode-content h6 { font-size: 13px !important; }
+
+.notebook-app .view-mode-content ul,
+.notebook-app .view-mode-content ol {
+  margin: 8px 0 !important;
+  padding-left: 20px !important;
+  color: var(--nb-ink) !important;
+}
+
+.notebook-app .view-mode-content li {
+  margin: 4px 0 !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: var(--nb-ink) !important;
+}
+
+.notebook-app .view-mode-content strong {
+  font-weight: 600 !important;
+  color: var(--nb-ink) !important;
+}
+
+.notebook-app .view-mode-content em {
+  font-style: italic !important;
+  color: var(--nb-ink-muted) !important;
+}
+
+.notebook-app .view-mode-content blockquote {
+  margin: 12px 0 !important;
+  padding: 8px 12px !important;
+  border-left: 3px solid var(--nb-accent) !important;
+  background: var(--nb-surface-subtle) !important;
+  font-style: italic !important;
+  color: var(--nb-ink-muted) !important;
+}
+
+.notebook-app .view-mode-content code {
+  background: var(--nb-surface-subtle) !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  font-family: monospace !important;
+  font-size: 13px !important;
+  color: var(--nb-ink) !important;
+}
+
+.notebook-app .view-mode-content pre {
+  background: var(--nb-surface-subtle) !important;
+  padding: 12px !important;
+  border-radius: 6px !important;
+  overflow-x: auto !important;
+  margin: 12px 0 !important;
+}
+
+.notebook-app .view-mode-content pre code {
+  background: none !important;
+  padding: 0 !important;
+}
+
+:host-context(.dark) .notebook-app {
+  --nb-canvas: #0c0a09;
+  --nb-sidebar: #1c1917;
+  --nb-header: rgba(28, 25, 23, 0.95);
+  --nb-paper: #1a1816;
+  --nb-paper-toolbar: #141211;
+  --nb-surface: #292524;
+  --nb-surface-subtle: #1f1d1b;
+  --nb-border: #44403c;
+  --nb-ink: #fafaf9;
+  --nb-ink-muted: #a8a29e;
+  --nb-ink-faint: #78716c;
+  --nb-accent: #2dd4bf;
+  --nb-accent-hover: #5eead4;
+  --nb-primary-contrast: #0c0a09;
+  --nb-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 50px rgba(0, 0, 0, 0.35);
+  /* Con UI oscura, la pizarra sigue siendo papel claro para que el texto (y trazos oscuros) se lean bien */
+  --nb-board-bg: #f5f5f4;
+  --nb-board-ink: #1c1917;
+  --nb-board-muted: #44403c;
+  --nb-board-placeholder: #78716c;
+}
+
+.nb-input {
+  border: 1px solid var(--nb-border);
+  background: var(--nb-paper);
+  color: var(--nb-ink);
+}
+.nb-input::placeholder {
+  color: var(--nb-ink-faint);
+}
+.nb-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--nb-accent);
+  border-color: transparent;
+}
+
+.nb-primary-btn {
+  background: var(--nb-accent);
+  color: var(--nb-primary-contrast);
+}
+.nb-primary-btn:hover {
+  background: var(--nb-accent-hover);
+}
+
+.nb-icon-btn:focus-visible {
+  outline: 2px solid var(--nb-accent);
+  outline-offset: 2px;
+}
+
+.nb-sheet-item:hover {
+  background: var(--nb-surface);
+  border-color: var(--nb-border);
+}
+.nb-sheet-item--active {
+  background: color-mix(in srgb, var(--nb-accent) 14%, var(--nb-paper));
+  border-color: color-mix(in srgb, var(--nb-accent) 45%, var(--nb-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nb-accent) 25%, transparent);
+}
+.nb-sheet-item--active .nb-sheet-item-icon {
+  background: color-mix(in srgb, var(--nb-accent) 22%, var(--nb-paper));
+  color: var(--nb-accent);
+}
+
+.nb-mode-btn {
+  border: 1px solid var(--nb-border);
+  background: var(--nb-paper);
+  color: var(--nb-ink-muted);
+}
+.nb-mode-btn:hover {
+  border-color: var(--nb-ink-faint);
+  color: var(--nb-ink);
+}
+.nb-mode-btn--on {
+  background: color-mix(in srgb, var(--nb-accent) 18%, var(--nb-paper));
+  border-color: var(--nb-accent);
+  color: var(--nb-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nb-accent) 35%, transparent);
+}
+
+.nb-tool-btn {
+  background: var(--nb-paper);
+  color: var(--nb-ink-muted);
+  border: 1px solid var(--nb-border);
+}
+.nb-tool-btn:hover {
+  color: var(--nb-ink);
+}
+.nb-tool-btn--active {
+  background: color-mix(in srgb, var(--nb-accent) 25%, var(--nb-paper));
+  border-color: var(--nb-accent);
+  color: var(--nb-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nb-accent) 30%, transparent);
+  font-weight: 700;
+}
+
+.nb-mode-segment {
+  display: inline-flex;
+  background: var(--nb-surface);
+  border: 1px solid var(--nb-border);
+  border-radius: 12px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.nb-mode-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nb-ink-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+
+.nb-mode-segment__btn:hover {
+  color: var(--nb-ink);
+  background: color-mix(in srgb, var(--nb-ink) 8%, transparent);
+}
+
+.nb-mode-segment__btn--active {
+  background: var(--nb-paper);
+  color: var(--nb-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.nb-mode-segment__btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.nb-kbd {
+  font-size: 10px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface);
+  color: var(--nb-ink-muted);
+}
+
+.nb-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--nb-surface);
+  border: 1px solid var(--nb-border);
+  color: var(--nb-ink);
+}
+
+.nb-context-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--nb-ink);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.nb-context-item:hover {
+  background: var(--nb-surface);
+}
+.nb-context-menu {
+  box-shadow: var(--nb-paper-shadow);
+}
+
+[contenteditable] {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Texto de la pizarra: tinta oscura; el fondo (--nb-board-bg) es siempre claro aunque el resto de la app esté en oscuro */
+.sheet-editor {
+  color: var(--nb-board-ink);
+  caret-color: var(--nb-board-ink);
+}
+
+.sheet-editor a {
+  color: var(--nb-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sheet-editor[contenteditable='false'] {
+  cursor: default;
+  user-select: text;
+}
+
+.sheet-board-bg {
+  background: var(--nb-board-bg) !important;
+}
+
+.paint-layer-up {
+  z-index: 2;
+}
+.paint-layer-down {
+  z-index: 1;
+}
+.paint-canvas {
+  background: transparent;
+}
+
+.sheet-workspace {
+  border-radius: 0 0 1rem 1rem;
+  /* Separa el papel claro del marco oscuro en tema dark */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+:host-context(.dark) .sheet-workspace {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* —— Ancho útil: la hoja usa casi todo el espacio disponible —— */
+.nb-main-inner {
+  width: 100%;
+  max-width: min(100%, 1680px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 1920px) {
+  .nb-main-inner {
+    max-width: min(100%, 1780px);
+  }
+}
+
+.notebook-app--focus .nb-main-inner {
+  max-width: 100%;
+}
+
+.nb-sidebar {
+  transition:
+    width 0.22s ease,
+    min-width 0.22s ease,
+    opacity 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.nb-sidebar--collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+  border-right-width: 0 !important;
+  overflow: hidden !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notebook-app--focus .nb-sidebar {
+  display: none !important;
+}
+
+.notebook-header--focus {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.nb-meta-row--hidden {
+  display: none !important;
+}
+
+.nb-format-bar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media print {
+  .nb-no-print {
+    display: none !important;
+  }
+
+  .notebook-app {
+    background: #fff !important;
+    color: #1c1917 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .nb-main-area,
+  .nb-main-scroll {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .nb-main-inner {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .sheet-paper {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+
+  .sheet-workspace {
+    min-height: 50vh !important;
+    box-shadow: none !important;
+  }
+
+  .sheet-editor {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+.sheet-editor:empty:before,
+.sheet-editor[data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--nb-board-placeholder);
+  pointer-events: none;
+}
+
+.sheet-ul,
+.sheet-ol {
+  margin: 0.35rem 0 0.5rem;
+  padding-left: 1.35rem;
+}
+.sheet-li {
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
+}
+.sheet-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+.sheet-check-row span {
+  flex: 1;
+  min-height: 1.25rem;
+  outline: none;
+}
+
+.markdown-checkbox {
+  margin-top: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: var(--nb-accent);
+  flex-shrink: 0;
+}
+
+.sheet-empty-line {
+  min-height: 1.25em;
+}
