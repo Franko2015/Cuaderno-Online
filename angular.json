@@ -33,7 +33,9 @@
             "security": {
               "allowedHosts": []
             },
-            "ssr": false
+            "ssr": false,
+            "optimization": false,
+            "outputHashing": "none"
           },
           "configurations": {
             "production": {
@@ -56,6 +58,10 @@
                 }
               ],
               "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "outputHashing": "none"
             },
             "mobile": {
               "outputMode": "static",
@@ -91,7 +97,7 @@
               "buildTarget": "My-Notion:build:production"
             },
             "development": {
-              "buildTarget": "My-Notion:build"
+              "buildTarget": "My-Notion:build:development"
             }
           },
           "defaultConfiguration": "development"
