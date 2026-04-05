@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="utf-8">
+  <title>Log In</title>
+  <base href="/Cuaderno-Online/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="styles-HKBTE32Y.css"><style ng-app-id="ng">
+
+[_ngcontent-ng-c309112011]:root {
+  --color-primary: #3b82f6;
+  --color-primary-dark: #1e3a8a;
+  --color-secondary: #6366f1;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+}
+*[_ngcontent-ng-c309112011] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html[_ngcontent-ng-c309112011] {
+  scroll-behavior: smooth;
+}
+body[_ngcontent-ng-c309112011] {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.markdown-list[_ngcontent-ng-c309112011] {
+  list-style: none;
+  padding-left: 1.5rem;
+}
+.markdown-list[_ngcontent-ng-c309112011]   li[_ngcontent-ng-c309112011] {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+.markdown-list[_ngcontent-ng-c309112011]   li[_ngcontent-ng-c309112011]:before {
+  content: "\2022";
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+.markdown-ordered[_ngcontent-ng-c309112011]   li[_ngcontent-ng-c309112011]:before {
+  content: counter(item) ".";
+  counter-increment: item;
+}
+.markdown-checkbox[_ngcontent-ng-c309112011] {
+  appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #cbd5e1;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  margin-right: 0.75rem;
+  vertical-align: middle;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+.markdown-checkbox[_ngcontent-ng-c309112011]:hover {
+  border-color: var(--color-primary);
+}
+.markdown-checkbox[_ngcontent-ng-c309112011]:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: 50%;
+  background-repeat: no-repeat;
+}
+textarea[_ngcontent-ng-c309112011] {
+  transition: all 0.2s ease;
+}
+textarea[_ngcontent-ng-c309112011]:focus {
+  transform: translateY(-2px);
+}
+button[_ngcontent-ng-c309112011] {
+  position: relative;
+  overflow: hidden;
+}
+button[_ngcontent-ng-c309112011]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  pointer-events: none;
+}
+button[_ngcontent-ng-c309112011]:active::before {
+  width: 300px;
+  height: 300px;
+}
+[_ngcontent-ng-c309112011]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[_ngcontent-ng-c309112011]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[_ngcontent-ng-c309112011]::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+[_ngcontent-ng-c309112011]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+.dark[_ngcontent-ng-c309112011]   [_ngcontent-ng-c309112011]::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+.dark[_ngcontent-ng-c309112011]   [_ngcontent-ng-c309112011]::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+input[_ngcontent-ng-c309112011]::placeholder {
+  opacity: 0.7;
+}
+@keyframes _ngcontent-ng-c309112011_slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in[_ngcontent-ng-c309112011] {
+  animation: _ngcontent-ng-c309112011_slideInDown 0.3s ease-out;
+}
+.dark[_ngcontent-ng-c309112011] {
+  color-scheme: dark;
+}
+button[_ngcontent-ng-c309112011]:focus, 
+input[_ngcontent-ng-c309112011]:focus, 
+textarea[_ngcontent-ng-c309112011]:focus {
+  outline: none;
+}
+.sheet-editor[_ngcontent-ng-c309112011]:focus {
+  outline: none;
+  box-shadow: none;
+}
+.sheet-editor[contenteditable=true][_ngcontent-ng-c309112011] {
+  cursor: text;
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="21.2.5" _nghost-ng-c309112011="" ngh="1" ng-server-context="ssg"><div _ngcontent-ng-c309112011="" class="min-h-screen bg-white dark:bg-gray-950 text-black dark:text-white"><router-outlet _ngcontent-ng-c309112011=""></router-outlet><app-login ngh="0"><p>login works!</p></app-login><!--container--></div></app-root>
+<script src="main-ZRWOIGMG.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"__nghData__":[{},{"c":{"1":[{"i":"c2866934698","r":1}]}}]}</script></body></html>
