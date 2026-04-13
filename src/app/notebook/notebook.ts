@@ -847,6 +847,14 @@ export class Notebook implements OnInit, OnDestroy {
     }
   }
 
+  downloadAttachment(att: SheetAttachment) {
+    const a = document.createElement('a');
+    a.href
+      = att.dataUrl;
+    a.download = att.name;
+    a.click();
+  }
+
   toggleAttachmentsList() {
     this.showAttachmentsList.set(!this.showAttachmentsList());
   }
