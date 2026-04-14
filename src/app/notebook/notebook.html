@@ -203,14 +203,14 @@
             <button type="button" class="nb-tool-btn px-3 py-2 rounded-xl text-sm font-semibold"
               (click)="cancelKeywordEdit()">Cancelar</button>
           </div>
-          <div class="space-y-3">
+          <div class="grid gap-3">
             @if (hasKeywords()) {
             @for (key of keywordKeys(); track key) {
-            <div class="flex flex-col gap-2 rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-3">
-              <div class="flex items-start justify-between gap-3">
+            <div class="keyword-card">
+              <div class="keyword-card__main">
                 <div>
-                  <p class="text-sm font-semibold text-[var(--nb-ink)]">{{ key }}</p>
-                  <p class="text-xs text-[var(--nb-ink-muted)]">{{ userService.currentUser()?.keywords?.[key] }}</p>
+                  <p class="keyword-card__label">Clave</p>
+                  <p class="keyword-name">{{ key }}</p>
                 </div>
                 <div class="flex gap-2 flex-wrap">
                   <button type="button" class="nb-tool-btn px-3 py-2 rounded-xl text-xs font-semibold"
@@ -218,6 +218,10 @@
                   <button type="button" class="nb-tool-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-600"
                     (click)="removeKeyword(key)">Eliminar</button>
                 </div>
+              </div>
+              <div>
+                <p class="keyword-card__label">Valor</p>
+                <p class="keyword-value">{{ userService.currentUser()?.keywords?.[key] }}</p>
               </div>
             </div>
             }
@@ -944,32 +948,30 @@
         <div>
           <div class="mb-4">
             <h3 class="text-base font-semibold text-[var(--nb-ink)]">Palabras clave</h3>
-            <p class="text-sm text-[var(--nb-ink-muted)]">Usa estas claves en tus hojas para sustituir texto automáticamente.</p>
+            <p class="text-sm text-[var(--nb-ink-muted)]">Aquí verás tus claves guardadas y podrás editarlas o eliminarlas en un solo paso.</p>
           </div>
 
           @if (hasKeywords()) {
           <div class="keywords-grid">
             @for (key of keywordKeys(); track key) {
-            <div class="keyword-item">
-              <div class="keyword-text">
-                <div class="keyword-row">
-                  <span class="keyword-label">Clave</span>
-                  <span class="keyword-name">{{ key }}</span>
-                </div>
-                <div class="keyword-row">
-                  <span class="keyword-label">Valor</span>
-                  <span class="keyword-value">{{ userService.currentUser()?.keywords?.[key] }}</span>
-                </div>
+            <article class="keyword-card">
+              <div class="keyword-card__main">
+                <div class="keyword-card__label">Clave</div>
+                <div class="keyword-name">{{ key }}</div>
               </div>
-              <div class="keyword-actions flex gap-2">
-                <button type="button" class="nb-tool-btn px-2.5 py-1 text-xs font-semibold" (click)="startKeywordEdit(key)">
+              <div class="keyword-card__main">
+                <div class="keyword-card__label">Valor</div>
+                <div class="keyword-value">{{ userService.currentUser()?.keywords?.[key] }}</div>
+              </div>
+              <div class="keyword-actions flex flex-wrap gap-2 mt-2 lg:mt-0 lg:justify-end">
+                <button type="button" class="nb-tool-btn px-3 py-2 text-xs font-semibold" (click)="startKeywordEdit(key)">
                   Editar
                 </button>
-                <button type="button" class="nb-tool-btn px-2.5 py-1 text-xs font-semibold text-red-600" (click)="removeKeyword(key)">
+                <button type="button" class="nb-tool-btn px-3 py-2 text-xs font-semibold text-red-600" (click)="removeKeyword(key)">
                   Eliminar
                 </button>
               </div>
-            </div>
+            </article>
             }
           </div>
           } @else {

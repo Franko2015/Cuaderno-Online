@@ -140,6 +140,32 @@ export class Notebook implements OnInit, OnDestroy {
     if (id) {
       const nb = this.notebookService.getNotebook(id, ownerId);
       this.notebook.set(nb || null);
+      const routeSheetId =
+        this.route.snapshot.paramMap.get('sheetId') ||
+        this.route.snapshot.firstChild?.paramMap.get('sheetId');
+
+      const notebook = this.notebook();
+      if (notebook && notebook.sheets.length > 0) {
+        let selectedSheet = routeSheetId
+          ? notebook.sheets.find((s) => s.id === routeSheetId)
+          : undefined;
+
+        if (!selectedSheet) {
+          selectedSheet = notebook.sheets[0];
+        }
+
+        if (selectedSheet) {
+          this.selectSheet(selectedSheet, false);
+          if (!routeSheetId || selectedSheet.id !== routeSheetId) {
+            this.router.navigate([
+              '/notebook',
+              id,
+              'sheet',
+              selectedSheet.id,
+            ], { replaceUrl: true });
+          }
+        }
+      }
     }
   }
 
@@ -800,42 +826,36 @@ export class Notebook implements OnInit, OnDestroy {
     this.closeContextMenu();
   }
 
-  selectSheet(sheet: SheetData) {
-    console.log('selectSheet called - sheet:', sheet.title);
+  selectSheet(sheet: SheetData, updateUrl = false) {
     const kind = this.sheetKind(sheet);
     this.setInteractionMode(kind === 'draw' ? 'draw' : 'text');
 
-    // Usar propiedad regular además del signal
     this.selectedSheetRegular = sheet;
     this.selectedSheet.set(sheet);
     this.selectedSheetContent.set(sheet.content || '');
-
-    console.log('selectedSheet signal:', this.selectedSheet());
-    console.log('selectedSheet regular:', this.selectedSheetRegular);
-    console.log('hasSelectedSheet getter:', this.hasSelectedSheet);
     this.closeContextMenu();
 
-    // Forzar múltiples ciclos de detección de cambios
+    if (updateUrl && this.notebook()) {
+      this.router.navigate([
+        '/notebook',
+        this.notebook()!.id,
+        'sheet',
+        sheet.id,
+      ]);
+    }
+
     this.cdr.detectChanges();
 
-    // Forzar actualización con un pequeño delay
     setTimeout(() => {
       this.cdr.detectChanges();
-      console.log('After timeout - hasSelectedSheet:', this.hasSelectedSheet);
-    }, 10);
-
-    setTimeout(() => {
       if (this.editor?.nativeElement) {
         const inner = sheet.content?.trim()
           ? sheet.content
           : '<p class="sheet-empty-line"><br></p>';
         this.editor.nativeElement.innerHTML = inner;
-
-        // Mantener fuente y tamaño seleccionados
         this.editor.nativeElement.style.fontFamily = this.selectedFontFamily();
         this.editor.nativeElement.style.fontSize = this.selectedFontSize();
 
-        // Dar foco al editor si estamos en modo texto con múltiples intentos
         if (this.interactionMode() === 'text') {
           const focusEditor = () => {
             if (this.editor?.nativeElement) {
@@ -885,7 +905,7 @@ export class Notebook implements OnInit, OnDestroy {
   }
 
   onSheetClick(sheet: SheetData) {
-    this.selectSheet(sheet);
+    this.selectSheet(sheet, true);
   }
 
   clearCurrentSheet() {

@@ -403,21 +403,56 @@
 
 .keywords-grid {
   display: grid;
-  gap: 0.75rem;
-  max-height: 360px;
-  overflow: auto;
+  gap: 0.85rem;
   padding: 0.85rem;
   background: var(--nb-surface);
   border: 1px solid var(--nb-border);
   border-radius: 18px;
 }
 
+.keyword-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--nb-paper);
+  border: 1px solid var(--nb-border);
+  border-radius: 1.5rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+}
+
+.keyword-card__main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.keyword-card__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--nb-ink-faint);
+}
+
+.keyword-name {
+  font-weight: 700;
+  color: var(--nb-ink);
+}
+
+.keyword-value {
+  color: var(--nb-ink-muted);
+  min-width: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
 .keyword-editor {
   min-width: 0;
   border: 1px solid var(--nb-border);
   border-radius: 1.5rem;
-  padding: 1rem;
-  background: var(--nb-surface);
+  padding: 1.25rem;
+  background: var(--nb-paper);
 }
 
 .keyword-editor__title {
@@ -425,49 +460,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.keyword-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 1rem;
-  background: color-mix(in srgb, var(--nb-accent) 10%, var(--nb-paper));
-  border-radius: 18px;
-  border: 1px solid rgba(13, 148, 136, 0.08);
-}
-
-.keyword-text {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.keyword-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: baseline;
-}
-
-.keyword-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--nb-ink-faint);
-}
-
-.keyword-name {
-  display: inline-flex;
-  font-weight: 700;
-  color: var(--nb-ink);
-}
-
-.keyword-value {
-  display: inline-flex;
-  color: var(--nb-ink-muted);
-  word-break: break-word;
+  margin-bottom: 1rem;
 }
 
 .keyword-actions button {
