@@ -1,1 +1,154 @@
-<p>login works!</p>
+<div class="login-screen">
+  <div class="login-background">
+    <div class="login-glow login-glow-1"></div>
+    <div class="login-glow login-glow-2"></div>
+    <div class="login-glow login-glow-3"></div>
+  </div>
+
+  <div class="login-container">
+    <div class="login-main animate-in">
+      <div class="login-panel">
+        <div class="login-header">
+          <div>
+            <span class="login-chip">Bienvenido</span>
+            <h1 class="login-title">Inicia sesión o crea tu perfil</h1>
+            <p class="login-subtitle">Selecciona un perfil existente o regístrate con tu usuario. El login es el flujo principal.</p>
+          </div>
+          <div class="login-toggle-row">
+            <button type="button" class="login-toggle" [class.active]="activeForm() === 'login'" (click)="showLoginForm()">Iniciar sesión</button>
+            <button type="button" class="login-toggle" [class.active]="activeForm() === 'register'" (click)="showRegisterForm()">Crear perfil</button>
+          </div>
+        </div>
+
+        <div class="login-body">
+          @if (selectedProfile()) {
+          <div class="login-selected-card">
+            <div class="profile-chip">Perfil seleccionado</div>
+            <div class="selected-info">
+              <div class="selected-avatar">{{ (selectedProfile()?.username || '').charAt(0).toUpperCase() }}</div>
+              <div>
+                <p class="selected-name">{{ selectedProfile()?.username }}</p>
+                <p class="selected-meta">{{ selectedProfile()?.nombre || 'Sin nombre adicional' }}</p>
+                @if (selectedProfile()?.password) {
+                <p class="selected-note">Ingresa la contraseña del perfil.</p>
+                } @else {
+                <p class="selected-note">Este perfil no tiene contraseña.</p>
+                }
+              </div>
+            </div>
+            <button type="button" class="selected-clear" (click)="clearProfileSelection()">Cambiar perfil</button>
+          </div>
+          }
+
+          @if (activeForm() === 'login') {
+          <div class="login-form">
+            <label class="login-field">
+              <span>Usuario</span>
+              @if (selectedProfile()) {
+              <input type="text" [value]="username()" disabled class="login-input disabled" />
+              } @else {
+              <input type="text" [value]="username()" (input)="username.set($any($event.target).value)" placeholder="usuario123" class="login-input" />
+              }
+            </label>
+
+            <label class="login-field">
+              <span>Contraseña</span>
+              <input type="password" [value]="password()" (input)="password.set($any($event.target).value)" placeholder="Contraseña" class="login-input" />
+            </label>
+
+            @if (errorMessage()) {
+            <p class="login-error">{{ errorMessage() }}</p>
+            }
+
+            <div class="login-button-group">
+              <button type="button" class="login-button login-button-primary" (click)="login()">Ingresar</button>
+              <button type="button" class="login-button login-button-secondary" (click)="showRegisterForm()">Crear perfil</button>
+            </div>
+          </div>
+          } @else {
+          <div class="login-form login-form--register">
+            <div class="login-form-grid">
+              <label class="login-field">
+                <span>Usuario *</span>
+                <input type="text" [value]="username()" (input)="username.set($any($event.target).value)" placeholder="usuario123" class="login-input" />
+              </label>
+              <label class="login-field">
+                <span>Contraseña</span>
+                <input type="password" [value]="password()" (input)="password.set($any($event.target).value)" placeholder="Contraseña opcional" class="login-input" />
+              </label>
+              <label class="login-field">
+                <span>Nombre</span>
+                <input type="text" [value]="nombre()" (input)="nombre.set($any($event.target).value)" placeholder="Ramón" class="login-input" />
+              </label>
+              <label class="login-field">
+                <span>Apellido paterno</span>
+                <input type="text" [value]="apellidoPaterno()" (input)="apellidoPaterno.set($any($event.target).value)" placeholder="Freire" class="login-input" />
+              </label>
+              <label class="login-field">
+                <span>Apellido materno</span>
+                <input type="text" [value]="apellidoMaterno()" (input)="apellidoMaterno.set($any($event.target).value)" placeholder="de la" class="login-input" />
+              </label>
+              <label class="login-field login-form-wide">
+                <span>Gmail</span>
+                <input type="email" [value]="gmail()" (input)="gmail.set($any($event.target).value)" placeholder="usuario@gmail.com" class="login-input" />
+              </label>
+              <label class="login-field login-form-wide">
+                <span>LinkedIn / Facebook / X</span>
+                <input type="text" [value]="linkedin()" (input)="linkedin.set($any($event.target).value)" placeholder="linkedin.com/in/usuario" class="login-input" />
+              </label>
+            </div>
+
+            <div class="login-details-card">
+              <p class="login-details-title">Configuración de acceso profesional</p>
+              <p class="login-details-copy">Tu perfil se guarda de forma local y segura en este navegador. Puedes elegir un perfil guardado a la derecha o compartirlo como JSON para usarlo en otro equipo.</p>
+            </div>
+
+            @if (errorMessage()) {
+            <p class="login-error">{{ errorMessage() }}</p>
+            }
+
+            <div class="login-button-group">
+              <button type="button" class="login-button login-button-primary" (click)="register()">Crear perfil</button>
+              <button type="button" class="login-button login-button-secondary" (click)="showLoginForm()">Volver a iniciar sesión</button>
+            </div>
+          </div>
+          }
+
+          <div class="login-import">
+            <p class="login-import-text">Importa un perfil compartido para cargar tu configuración completa.</p>
+            <label class="login-import-button">
+              <input type="file" accept="application/json,.json" class="sr-only" (change)="importSharedProfile($event)" />
+              <span>📎 Importar perfil JSON</span>
+            </label>
+            @if (sharedProfileMessage()) {
+            <p class="login-success">{{ sharedProfileMessage() }}</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (userService.getAllProfiles().length > 0) {
+      <aside class="login-aside">
+        <div class="login-aside-panel">
+          <div class="aside-header">
+            <p class="aside-title">Perfiles guardados</p>
+            <p class="aside-subtitle">Selecciona un perfil y solo tendrás que ingresar la contraseña.</p>
+          </div>
+          <div class="profile-list">
+            @for (profile of userService.getAllProfiles(); track profile.id) {
+            <button type="button" class="profile-item" (click)="selectSavedProfile(profile)">
+              <div class="profile-avatar">{{ profile.username.charAt(0).toUpperCase() }}</div>
+              <div class="profile-texts">
+                <p class="profile-username">{{ profile.username }}</p>
+                <p class="profile-detail">{{ profile.nombre || 'Perfil guardado' }}</p>
+              </div>
+              <span class="profile-arrow">→</span>
+            </button>
+            }
+          </div>
+        </div>
+      </aside>
+      }
+    </div>
+  </div>
+</div>

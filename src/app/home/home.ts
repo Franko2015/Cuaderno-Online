@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import {
@@ -8,8 +8,9 @@ import {
   TrashedSheetData,
 } from '../services/notebook';
 import { ThemeService } from '../services/theme';
-import { TrashModalComponent } from '../components/trash-modal/trash-modal';
+import { UserService } from '../services/user';
 import { MobileNavComponent } from '../components/mobile-nav/mobile-nav';
+import { TrashModalComponent } from '../components/trash-modal/trash-modal';
 
 @Component({
   selector: 'app-home',
@@ -22,6 +23,7 @@ export class Home implements OnInit {
   router = inject(Router);
   route = inject(ActivatedRoute);
   themeService = inject(ThemeService);
+  userService = inject(UserService);
   notebooks = signal<NotebookData[]>([]);
   trashedSheets = signal<TrashedSheetData[]>([]);
   trashedNotebooks = signal<TrashedNotebookData[]>([]);
@@ -41,14 +43,40 @@ export class Home implements OnInit {
   showEditNotebookModal = signal(false);
   showDeleteNotebookModal = signal(false);
   showTrashModal = signal(false);
+  showProfileDropdown = signal(false);
+  showProfileModal = signal(false);
+  showLogoModal = signal(false);
+  showPasswordModal = signal(false);
+  profileModalMessage = signal('');
+  currentPassword = signal('');
+  newPassword = signal('');
+  confirmPassword = signal('');
+  selectedProfileToLogin = signal('');
+  showProfileSelection = signal(false);
+  profileAvatar = signal('');
+  profileSelectionError = signal('');
+  sharedProfileMessage = signal('');
+  profileNombre = signal('');
+  profileApellidoPaterno = signal('');
+  profileApellidoMaterno = signal('');
+  profileGmail = signal('');
+  profileLinkedin = signal('');
+
   newNotebookName = signal('');
   editNotebookName = signal('');
   notebookToEdit = signal<NotebookData | null>(null);
   notebookToDelete = signal<NotebookData | null>(null);
 
-  ngOnInit() {
+  private readonly profileSelectionEffect = effect(() => {
+    const current = this.userService.currentUser();
     this.loadNotebooks();
     this.loadTrash();
+    this.profileAvatar.set(current?.avatarUrl ?? '');
+    const profiles = this.userService.getAllProfiles();
+    this.showProfileSelection.set(!current && profiles.length > 1);
+  });
+
+  ngOnInit() {
     this.updateStorageInfo();
     this.detectCurrentRoute();
     // Update storage info every 5 seconds
@@ -91,6 +119,151 @@ export class Home implements OnInit {
     this.themeService.toggleTheme();
   }
 
+  toggleProfileDropdown() {
+    this.showProfileDropdown.update((value) => !value);
+  }
+
+  openProfileModal() {
+    const current = this.userService.currentUser();
+    if (current) {
+      this.profileNombre.set(current.nombre ?? '');
+      this.profileApellidoPaterno.set(current.apellidoPaterno ?? '');
+      this.profileApellidoMaterno.set(current.apellidoMaterno ?? '');
+      this.profileGmail.set(current.gmail ?? '');
+      this.profileLinkedin.set(current.linkedin ?? '');
+      this.profileAvatar.set(current.avatarUrl ?? '');
+    }
+    this.profileModalMessage.set('');
+    this.showProfileModal.set(true);
+    this.showProfileDropdown.set(false);
+  }
+
+  closeProfileModal() {
+    this.showProfileModal.set(false);
+    this.profileModalMessage.set('');
+    this.currentPassword.set('');
+    this.newPassword.set('');
+    this.confirmPassword.set('');
+  }
+
+  openLogoModal() {
+    this.profileModalMessage.set('');
+    this.showLogoModal.set(true);
+    this.showProfileDropdown.set(false);
+  }
+
+  closeLogoModal() {
+    this.showLogoModal.set(false);
+    this.profileModalMessage.set('');
+  }
+
+  openPasswordModal() {
+    this.profileModalMessage.set('');
+    this.showPasswordModal.set(true);
+    this.showProfileDropdown.set(false);
+  }
+
+  closePasswordModal() {
+    this.showPasswordModal.set(false);
+    this.currentPassword.set('');
+    this.newPassword.set('');
+    this.confirmPassword.set('');
+    this.profileModalMessage.set('');
+  }
+
+  selectProfile(profileId: string) {
+    if (this.userService.selectProfile(profileId)) {
+      this.profileSelectionError.set('');
+      this.showProfileSelection.set(false);
+      this.showProfileDropdown.set(false);
+      this.router.navigate(['/']);
+      return;
+    }
+    this.profileSelectionError.set('No se pudo seleccionar ese perfil.');
+  }
+
+  saveProfile() {
+    const current = this.userService.currentUser();
+    if (!current) {
+      this.profileModalMessage.set('No hay perfil activo.');
+      return;
+    }
+
+    this.userService.updateProfile({
+      ...current,
+      nombre: this.profileNombre().trim() || undefined,
+      apellidoPaterno: this.profileApellidoPaterno().trim() || undefined,
+      apellidoMaterno: this.profileApellidoMaterno().trim() || undefined,
+      gmail: this.profileGmail().trim() || undefined,
+      linkedin: this.profileLinkedin().trim() || undefined,
+      avatarUrl: this.profileAvatar() || current.avatarUrl,
+    });
+    this.profileModalMessage.set('Perfil guardado correctamente.');
+  }
+
+  onProfileLogoSelected(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      this.userService.setAvatarUrl(dataUrl);
+      this.profileAvatar.set(dataUrl);
+      this.profileModalMessage.set('Logo actualizado.');
+      this.showLogoModal.set(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  changePassword() {
+    if (this.newPassword().trim() !== this.confirmPassword().trim()) {
+      this.profileModalMessage.set('Las contraseñas no coinciden.');
+      return;
+    }
+    try {
+      this.userService.changePassword(this.currentPassword().trim() || undefined, this.newPassword().trim());
+      this.profileModalMessage.set('Contraseña actualizada.');
+      this.closePasswordModal();
+    } catch (error) {
+      this.profileModalMessage.set(error instanceof Error ? error.message : 'No se pudo cambiar la contraseña.');
+    }
+  }
+
+  shareProfile() {
+    const current = this.userService.currentUser();
+    if (!current) {
+      return;
+    }
+    const sharePayload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      source: 'profile-share',
+      profile: current,
+      notebooks: this.notebookService.getNotebooks(current.id),
+      trashedSheets: this.notebookService.getTrashedSheets(current.id),
+      trashedNotebooks: this.notebookService.getTrashedNotebooks(current.id),
+    };
+    const data = JSON.stringify(sharePayload, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `perfil-${current.username}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    this.profileModalMessage.set('Se descargó tu perfil para compartir.');
+    this.showProfileDropdown.set(false);
+  }
+
+  openProfileSwitcher() {
+    this.router.navigate(['/login']);
+    this.showProfileDropdown.set(false);
+  }
+
   // Modal methods
   openCreateNotebookModal() {
     this.newNotebookName.set('');
@@ -105,7 +278,7 @@ export class Home implements OnInit {
   confirmCreateNotebook() {
     const name = this.newNotebookName().trim();
     if (!name) return;
-    
+
     this.createNotebook();
     this.closeCreateNotebookModal();
   }
@@ -125,9 +298,9 @@ export class Home implements OnInit {
   confirmEditNotebook() {
     const notebook = this.notebookToEdit();
     const newName = this.editNotebookName().trim();
-    
+
     if (!notebook || !newName) return;
-    
+
     this.notebookService.updateNotebook(notebook.id, newName);
     this.loadNotebooks();
     this.closeEditNotebookModal();
@@ -146,7 +319,7 @@ export class Home implements OnInit {
   confirmDeleteNotebook() {
     const notebook = this.notebookToDelete();
     if (!notebook) return;
-    
+
     this.moveNotebookToTrash(notebook);
     this.closeDeleteNotebookModal();
   }
@@ -162,17 +335,34 @@ export class Home implements OnInit {
   }
 
   loadNotebooks() {
-    this.notebooks.set(this.notebookService.getNotebooks());
+    const ownerId = this.userService.currentUser()?.id;
+    if (!ownerId) {
+      this.notebooks.set([]);
+      return;
+    }
+    this.notebooks.set(this.notebookService.getNotebooks(ownerId));
   }
 
   loadTrash() {
-    this.trashedSheets.set(this.notebookService.getTrashedSheets());
-    this.trashedNotebooks.set(this.notebookService.getTrashedNotebooks());
+    const ownerId = this.userService.currentUser()?.id;
+    if (!ownerId) {
+      this.trashedSheets.set([]);
+      this.trashedNotebooks.set([]);
+      return;
+    }
+    this.trashedSheets.set(this.notebookService.getTrashedSheets(ownerId));
+    this.trashedNotebooks.set(this.notebookService.getTrashedNotebooks(ownerId));
   }
 
   createNotebook() {
+    const ownerId = this.userService.currentUser()?.id;
+    if (!ownerId) {
+      alert('Inicia sesión para crear y guardar cuadernos en tu perfil.');
+      this.router.navigate(['/login']);
+      return;
+    }
     const name = this.newNotebookName().trim() || 'Nuevo cuaderno';
-    this.notebookService.createNotebook(name);
+    this.notebookService.createNotebook(name, ownerId);
     this.loadNotebooks();
   }
 

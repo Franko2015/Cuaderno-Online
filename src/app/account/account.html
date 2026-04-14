@@ -1,1 +1,138 @@
-<p>account works!</p>
+<div class="min-h-screen bg-[var(--home-bg)] flex items-center justify-center p-4">
+  <div class="w-full max-w-4xl bg-white rounded-3xl border border-[var(--home-border)] shadow-xl overflow-hidden">
+    <div class="bg-[var(--home-header)] px-8 py-8 text-center">
+      <h1 class="text-3xl font-bold text-[var(--home-ink)]">Configuración de usuario</h1>
+      <p class="text-sm text-[var(--home-ink-muted)] mt-2">Edita tu perfil, palabras clave y acceso rápido desde aquí.
+      </p>
+    </div>
+    <div class="px-8 py-8 space-y-8">
+      @if (!currentUser) {
+      <div class="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
+        <p class="text-red-700 font-semibold">No hay sesión activa.</p>
+        <p class="text-sm text-[var(--home-ink-muted)] mt-2">Primero inicia sesión para ver y editar tu perfil.</p>
+        <button type="button" (click)="router.navigate(['/login'])"
+          class="mt-4 home-btn-primary px-6 py-3 rounded-2xl font-semibold shadow-sm hover:shadow-md transition-shadow">
+          Ir a iniciar sesión
+        </button>
+      </div>
+      } @else {
+      <section class="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div class="space-y-4">
+          <div class="rounded-3xl border border-[var(--home-border)] bg-[var(--home-card)] p-6">
+            <h2 class="text-xl font-semibold text-[var(--home-ink)] mb-3">Datos del perfil</h2>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Usuario
+                <input type="text" [value]="username()" (input)="username.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Nombre
+                <input type="text" [value]="nombre()" (input)="nombre.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Apellido paterno
+                <input type="text" [value]="apellidoPaterno()" (input)="apellidoPaterno.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Apellido materno
+                <input type="text" [value]="apellidoMaterno()" (input)="apellidoMaterno.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Fecha de nacimiento
+                <input type="date" [value]="fechaNacimiento()" (input)="fechaNacimiento.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+                Edad
+                <input type="text" [value]="edad()" (input)="edad.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)] sm:col-span-2">
+                Títulos / carrera
+                <input type="text" [value]="titulos()" (input)="titulos.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)] sm:col-span-2">
+                Gmail
+                <input type="email" [value]="gmail()" (input)="gmail.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)] sm:col-span-2">
+                LinkedIn / Facebook / X
+                <input type="text" [value]="linkedin()" (input)="linkedin.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+              <label class="block text-sm font-semibold text-[var(--home-ink-muted)] sm:col-span-2">
+                Otro dato libre
+                <input type="text" [value]="x()" (input)="x.set($any($event.target).value)"
+                  class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]" />
+              </label>
+            </div>
+            <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button type="button" (click)="saveProfile()"
+                class="home-btn-primary px-6 py-3 rounded-2xl font-semibold shadow-sm hover:shadow-md transition-shadow">
+                Guardar perfil
+              </button>
+              <button type="button" (click)="logout()"
+                class="home-btn-secondary px-6 py-3 rounded-2xl font-semibold border hover:bg-[var(--home-surface)] transition-colors">
+                Cerrar sesión
+              </button>
+            </div>
+            @if (successMessage()) {
+            <p class="text-sm text-green-600">{{ successMessage() }}</p>
+            }
+            @if (errorMessage()) {
+            <p class="text-sm text-red-600">{{ errorMessage() }}</p>
+            }
+          </div>
+        </div>
+
+        <aside class="rounded-3xl border border-[var(--home-border)] bg-[var(--home-card)] p-6">
+          <h2 class="text-xl font-semibold text-[var(--home-ink)] mb-3">Atajos de texto</h2>
+          <p class="text-sm text-[var(--home-ink-muted)] mb-4">Las palabras clave del perfil se aplican en las hojas y
+            en la vista del cuaderno.</p>
+          <div class="grid gap-3">
+            <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+              Clave
+              <input type="text" [value]="keywordKey()" (input)="keywordKey.set($any($event.target).value)"
+                class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]"
+                placeholder="escuela" />
+            </label>
+            <label class="block text-sm font-semibold text-[var(--home-ink-muted)]">
+              Valor
+              <input type="text" [value]="keywordValue()" (input)="keywordValue.set($any($event.target).value)"
+                class="home-input mt-2 w-full px-4 py-3 rounded-2xl border border-[var(--home-border)] bg-[var(--home-card)] text-[var(--home-ink)]"
+                placeholder="Ramón Freire" />
+            </label>
+            <button type="button" (click)="addKeyword()"
+              class="home-btn-primary w-full px-6 py-3 rounded-2xl font-semibold shadow-sm hover:shadow-md transition-shadow">
+              Añadir atajo
+            </button>
+          </div>
+          <div class="mt-6 space-y-3">
+            @if (currentUser && currentUser.keywords && Object.keys(currentUser.keywords).length > 0) {
+            <div *ngFor="let key of Object.keys(currentUser.keywords)"
+              class="rounded-2xl border border-[var(--home-border)] bg-[var(--home-paper)] p-4 flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-[var(--home-ink)]">{{ key }}</p>
+                <p class="text-sm text-[var(--home-ink-muted)]">
+                  {{ currentUser.keywords[key] }}
+                </p>
+              </div>
+              <button type="button" class="text-sm text-red-600 font-semibold"
+                (click)="removeKeyword(key)">Eliminar</button>
+            </div>
+            } @else {
+            <p class="text-sm text-[var(--home-ink-muted)]">No tienes atajos guardados.</p>
+            }
+          </div>
+        </aside>
+      </section>
+      }
+    </div>
+  </div>
+</div>

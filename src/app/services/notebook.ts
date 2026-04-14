@@ -29,30 +29,30 @@ const checkStorageQuota = (): { used: number; available: number; percentage: num
   if (!isBrowserCache) {
     return { used: 0, available: 0, percentage: 0 };
   }
-  
+
   let used = 0;
   for (let key in localStorage) {
     if (localStorage.hasOwnProperty(key)) {
       used += localStorage[key].length + key.length;
     }
   }
-  
+
   // Estimate 5MB typical localStorage limit
   const estimated = 5 * 1024 * 1024;
   const available = estimated - used;
   const percentage = (used / estimated) * 100;
-  
+
   return { used, available, percentage };
 };
 
 // Cleanup old data
 const cleanupOldData = () => {
   if (!isBrowserCache) return;
-  
+
   const keys = Object.keys(localStorage);
   const now = Date.now();
   const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
-  
+
   keys.forEach(key => {
     if (key.startsWith('temp_') || key.startsWith('cache_')) {
       const value = localStorage.getItem(key);
@@ -78,13 +78,16 @@ export interface SheetAttachment {
   name: string;
   mimeType: string;
   dataUrl: string;
+  size: number;
   addedAt: string;
 }
 
 export interface NotebookData {
   id: string;
+  ownerId?: string;
   name: string;
   sheets: SheetData[];
+  shortcuts?: Record<string, string>;
 }
 
 export interface SheetData {
@@ -102,13 +105,16 @@ export interface SheetData {
 
 export interface TrashedSheetData extends SheetData {
   notebookId: string;
+  ownerId?: string;
   deletedAt: string;
 }
 
 export interface TrashedNotebookData {
   id: string;
+  ownerId?: string;
   name: string;
   sheets: SheetData[];
+  shortcuts?: Record<string, string>;
   deletedAt: string;
 }
 
@@ -173,6 +179,7 @@ export class NotebookService {
       t.pinned = t.pinned ?? false;
     }
     for (const tn of this.trashedNotebooks) {
+      tn.shortcuts = tn.shortcuts ?? {};
       for (const s of tn.sheets) {
         s.sheetKind = s.sheetKind ?? 'mixed';
         s.tags = s.tags ?? [];
@@ -180,13 +187,16 @@ export class NotebookService {
         s.pinned = s.pinned ?? false;
       }
     }
+    for (const nb of this.notebooks) {
+      nb.shortcuts = nb.shortcuts ?? {};
+    }
   }
 
   private loadFromStorage() {
     if (!this.isBrowser) {
       return;
     }
-    
+
     try {
       const notebooksData = localStorage.getItem(this.STORAGE_KEYS.notebooks);
       const trashedData = localStorage.getItem(this.STORAGE_KEYS.trashedSheets);
@@ -218,37 +228,37 @@ export class NotebookService {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
-    
+
     this.saveTimeout = setTimeout(() => {
       try {
         const quota = checkStorageQuota();
-        
+
         // Warn if storage is getting full
         if (quota.percentage > 80) {
           console.warn(`Storage usage: ${quota.percentage.toFixed(1)}% (${(quota.used / 1024 / 1024).toFixed(1)}MB used)`);
         }
-        
+
         // Check if we have enough space
         const dataToSave = {
           notebooks: JSON.stringify(this.notebooks),
           trashedSheets: JSON.stringify(this.trashedSheets),
           trashedNotebooks: JSON.stringify(this.trashedNotebooks)
         };
-        
+
         const totalSize = Object.values(dataToSave).reduce((sum, data) => sum + data.length, 0);
-        
+
         if (totalSize > quota.available) {
           throw new Error('Insufficient storage space');
         }
-        
+
         // Save compressed data
         localStorage.setItem(this.STORAGE_KEYS.notebooks, compressData(dataToSave.notebooks));
         localStorage.setItem(this.STORAGE_KEYS.trashedSheets, compressData(dataToSave.trashedSheets));
         localStorage.setItem(this.STORAGE_KEYS.trashedNotebooks, compressData(dataToSave.trashedNotebooks));
-        
+
         // Update last backup timestamp
         localStorage.setItem(this.STORAGE_KEYS.lastBackup, Date.now().toString());
-        
+
       } catch (e) {
         console.error('Storage error:', e);
         if (e instanceof Error && e.message.includes('quota')) {
@@ -262,11 +272,11 @@ export class NotebookService {
 
   private clearCorruptedData() {
     if (!this.isBrowser) return;
-    
+
     Object.values(this.STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
-    
+
     this.notebooks = [];
     this.trashedSheets = [];
     this.trashedNotebooks = [];
@@ -275,7 +285,7 @@ export class NotebookService {
   private handleStorageQuotaExceeded() {
     // Auto-cleanup old data
     cleanupOldData();
-    
+
     // Try to save again after cleanup
     setTimeout(() => {
       try {
@@ -304,23 +314,113 @@ export class NotebookService {
     this.importSnapshotReplace(json);
   }
 
-  getNotebooks(): NotebookData[] {
-    return this.notebooks;
+  importSharedProfile(json: string, targetOwnerId?: string) {
+    const data = JSON.parse(json) as {
+      version: 1;
+      exportedAt: string;
+      source?: string;
+      profile: { id: string; username: string };
+      notebooks?: NotebookData[];
+      trashedSheets?: TrashedSheetData[];
+      trashedNotebooks?: TrashedNotebookData[];
+    };
+
+    if (!data || data.version !== 1 || !data.profile || !Array.isArray(data.notebooks)) {
+      throw new Error('Formato de perfil compartido no válido');
+    }
+
+    const ownerId = targetOwnerId ?? data.profile.id;
+
+    const ensureUniqueId = (id: string) => {
+      let newId = id;
+      while (
+        this.notebooks.some((nb) => nb.id === newId) ||
+        this.trashedNotebooks.some((tn) => tn.id === newId) ||
+        this.trashedSheets.some((ts) => ts.id === newId)
+      ) {
+        newId = `${id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      }
+      return newId;
+    };
+
+    const importSheet = (sheet: SheetData) => ({
+      ...sheet,
+      id: ensureUniqueId(sheet.id),
+      attachments: sheet.attachments ?? [],
+      tags: sheet.tags ?? [],
+      pinned: sheet.pinned ?? false,
+      sheetKind: sheet.sheetKind ?? 'mixed',
+    });
+
+    const importedNotebooks = data.notebooks.map((notebook) => ({
+      ...notebook,
+      id: ensureUniqueId(notebook.id),
+      ownerId,
+      shortcuts: notebook.shortcuts ?? {},
+      sheets: (notebook.sheets || []).map(importSheet),
+    }));
+
+    const importedTrashedSheets = (data.trashedSheets || []).map((sheet) => ({
+      ...sheet,
+      id: ensureUniqueId(sheet.id),
+      ownerId,
+      tags: sheet.tags ?? [],
+      attachments: sheet.attachments ?? [],
+      pinned: sheet.pinned ?? false,
+      sheetKind: sheet.sheetKind ?? 'mixed',
+    }));
+
+    const importedTrashedNotebooks = (data.trashedNotebooks || []).map((notebook) => ({
+      ...notebook,
+      id: ensureUniqueId(notebook.id),
+      ownerId,
+      shortcuts: notebook.shortcuts ?? {},
+      sheets: (notebook.sheets || []).map(importSheet),
+    }));
+
+    this.notebooks.push(...importedNotebooks);
+    this.trashedSheets.push(...importedTrashedSheets);
+    this.trashedNotebooks.push(...importedTrashedNotebooks);
+    this.saveToStorage();
   }
 
-  getNotebook(id: string): NotebookData | undefined {
-    return this.notebooks.find((nb) => nb.id === id);
+  getNotebooks(ownerId?: string): NotebookData[] {
+    if (!ownerId) {
+      return this.notebooks;
+    }
+    return this.notebooks.filter((nb) => nb.ownerId === ownerId);
   }
 
-  createNotebook(name: string): NotebookData {
+  getNotebook(id: string, ownerId?: string): NotebookData | undefined {
+    const notebook = this.notebooks.find((nb) => nb.id === id);
+    if (!notebook) {
+      return undefined;
+    }
+    if (ownerId && notebook.ownerId !== ownerId) {
+      return undefined;
+    }
+    return notebook;
+  }
+
+  createNotebook(name: string, ownerId?: string): NotebookData {
     const notebook: NotebookData = {
       id: Date.now().toString(),
+      ownerId,
       name,
       sheets: [],
+      shortcuts: {},
     };
     this.notebooks.push(notebook);
     this.saveToStorage();
     return notebook;
+  }
+
+  updateNotebookShortcuts(id: string, shortcuts: Record<string, string>) {
+    const notebook = this.getNotebook(id);
+    if (notebook) {
+      notebook.shortcuts = { ...shortcuts };
+      this.saveToStorage();
+    }
   }
 
   updateNotebook(id: string, name: string) {
@@ -340,15 +440,20 @@ export class NotebookService {
     this.notebooks.splice(idx, 1);
     this.trashedNotebooks.push({
       id: nb.id,
+      ownerId: nb.ownerId,
       name: nb.name,
       sheets: nb.sheets.map((s) => ({ ...s })),
+      shortcuts: nb.shortcuts ?? {},
       deletedAt: new Date().toISOString(),
     });
     this.saveToStorage();
   }
 
-  getTrashedNotebooks(): TrashedNotebookData[] {
-    return this.trashedNotebooks;
+  getTrashedNotebooks(ownerId?: string): TrashedNotebookData[] {
+    if (!ownerId) {
+      return this.trashedNotebooks;
+    }
+    return this.trashedNotebooks.filter((tn) => tn.ownerId === ownerId);
   }
 
   restoreNotebookFromTrash(trashedId: string) {
@@ -470,6 +575,7 @@ export class NotebookService {
       const trashed: TrashedSheetData = {
         ...sheet,
         notebookId,
+        ownerId: notebook.ownerId,
         deletedAt: new Date().toISOString(),
       };
       this.trashedSheets.push(trashed);
@@ -477,8 +583,11 @@ export class NotebookService {
     }
   }
 
-  getTrashedSheets(): TrashedSheetData[] {
-    return this.trashedSheets;
+  getTrashedSheets(ownerId?: string): TrashedSheetData[] {
+    if (!ownerId) {
+      return this.trashedSheets;
+    }
+    return this.trashedSheets.filter((ts) => ts.ownerId === ownerId);
   }
 
   restoreSheetFromTrash(trashedId: string) {

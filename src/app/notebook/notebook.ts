@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   inject,
   signal,
   OnInit,
@@ -14,9 +15,11 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { NgIf } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { NotebookService, NotebookData, SheetData, SheetKind, SheetAttachment } from '../services/notebook';
 import { ChatbotComponent } from '../components/chatbot/chatbot.component';
 import { ThemeService } from '../services/theme';
+import { UserService } from '../services/user';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 const DRAW_PRESET_COLORS = [
@@ -58,7 +61,10 @@ export class Notebook implements OnInit, OnDestroy {
   notebook = signal<NotebookData | null>(null);
   selectedSheet = signal<SheetData | null>(null);
   selectedSheetRegular: SheetData | null = null;
-  
+  safePreviewUrl = signal<SafeResourceUrl | null>(null);
+  sanitizer = inject(DomSanitizer);
+  lastSavedAt = signal<string | null>(null);
+
   // Propiedad computada para asegurar reactividad
   get hasSelectedSheet() {
     return !!this.selectedSheet() || !!this.selectedSheetRegular;
@@ -80,16 +86,29 @@ export class Notebook implements OnInit, OnDestroy {
   interactionMode = signal<InteractionMode>('text');
 
   showCreateSheetModal = signal(false);
+  showSheetOptionsModal = signal(false);
+  showNotebookOptionsModal = signal(false);
   newSheetTitle = signal('');
   newSheetKind = signal<SheetKind>('mixed');
+  sheetRenameDraft = signal('');
+  notebookRenameDraft = signal('');
 
+  shortcutKey = signal('');
+  shortcutValue = signal('');
+  keywordKey = signal('');
+  keywordValue = signal('');
+  editingKeyword = signal<string | null>(null);
+
+  printMode = signal<'sheet' | 'notebook' | null>(null);
   tagDraft = signal('');
   /** Oculta la lista de hojas para ganar anchura. */
   sidebarCollapsed = signal(false);
   /** Oculta cabecera lateral y compacta; máximo espacio para la hoja. */
   focusMode = signal(false);
   showShortcutsModal = signal(false);
-  
+  keywordKeys = computed(() => Object.keys(this.userService.currentUser()?.keywords ?? {}));
+  hasKeywords = computed(() => this.keywordKeys().length > 0);
+
   /** Modo de pantalla completa para dibujo */
   fullscreenDrawMode = signal(false);
 
@@ -97,13 +116,15 @@ export class Notebook implements OnInit, OnDestroy {
   boldActive = signal(false);
   italicActive = signal(false);
   underlineActive = signal(false);
-  
+
   /** Track font settings */
   selectedFontFamily = signal('Arial, sans-serif');
   selectedFontSize = signal('12px');
 
   // Signal for attachments list visibility
   showAttachmentsList = signal(false);
+  showAttachmentPreview = signal(false);
+  attachmentPreview = signal<SheetAttachment | null>(null);
 
   @ViewChild('editor') editor!: ElementRef<HTMLElement>;
   @ViewChild('drawCanvas') drawCanvas?: ElementRef<HTMLCanvasElement>;
@@ -115,8 +136,9 @@ export class Notebook implements OnInit, OnDestroy {
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
+    const ownerId = this.userService.currentUser()?.id;
     if (id) {
-      const nb = this.notebookService.getNotebook(id);
+      const nb = this.notebookService.getNotebook(id, ownerId);
       this.notebook.set(nb || null);
     }
   }
@@ -138,7 +160,8 @@ export class Notebook implements OnInit, OnDestroy {
   }
 
   themeService = inject(ThemeService);
-  
+  userService = inject(UserService);
+
     toggleTheme() {
       this.themeService.toggleTheme();
     }
@@ -398,7 +421,148 @@ export class Notebook implements OnInit, OnDestroy {
   }
 
   printCurrentSheet() {
-    window.print();
+    this.preparePrint('sheet');
+  }
+
+  printNotebook() {
+    this.preparePrint('notebook');
+  }
+
+  exportCurrentSheetToPdf() {
+    this.preparePrint('sheet');
+  }
+
+  exportNotebookToPdf() {
+    this.preparePrint('notebook');
+  }
+
+  private preparePrint(kind: 'sheet' | 'notebook') {
+    if (kind === 'sheet' && !this.selectedSheet()) {
+      return;
+    }
+    if (kind === 'notebook' && !this.notebook()) {
+      return;
+    }
+
+    this.printMode.set(kind);
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => this.printMode.set(null), 0);
+    }, 0);
+  }
+
+  private normalizeShortcutKey(key: string) {
+    return key.trim().toLowerCase().replace(/[^a-z0-9_-]/gi, '');
+  }
+
+  currentShortcuts(): Record<string, string> {
+    const notebookShortcuts = this.notebook()?.shortcuts ?? {};
+    const profileShortcuts = this.userService.currentUser()?.keywords ?? {};
+    return {
+      ...profileShortcuts,
+      ...notebookShortcuts,
+    };
+  }
+
+  shortcutKeys(): string[] {
+    return Object.keys(this.currentShortcuts());
+  }
+
+  hasShortcuts(): boolean {
+    return this.shortcutKeys().length > 0;
+  }
+
+  addShortcut() {
+    const key = this.normalizeShortcutKey(this.shortcutKey());
+    const value = this.shortcutValue().trim();
+    const notebook = this.notebook();
+    if (!notebook || !key || !value) {
+      return;
+    }
+    const shortcuts = { ...this.currentShortcuts(), [key]: value };
+    notebook.shortcuts = shortcuts;
+    this.notebookService.updateNotebookShortcuts(notebook.id, shortcuts);
+    this.notebook.set(this.notebookService.getNotebook(notebook.id) || null);
+    this.shortcutKey.set('');
+    this.shortcutValue.set('');
+  }
+
+  removeShortcut(key: string) {
+    const notebook = this.notebook();
+    if (!notebook) {
+      return;
+    }
+    const shortcuts = { ...this.currentShortcuts() };
+    delete shortcuts[key];
+    notebook.shortcuts = shortcuts;
+    this.notebookService.updateNotebookShortcuts(notebook.id, shortcuts);
+    this.notebook.set(this.notebookService.getNotebook(notebook.id) || null);
+  }
+
+  startKeywordEdit(key: string) {
+    const current = this.userService.currentUser();
+    if (!current?.keywords) {
+      return;
+    }
+    this.editingKeyword.set(key);
+    this.keywordKey.set(key);
+    this.keywordValue.set(current.keywords[key] ?? '');
+  }
+
+  cancelKeywordEdit() {
+    this.editingKeyword.set(null);
+    this.keywordKey.set('');
+    this.keywordValue.set('');
+  }
+
+  saveKeyword() {
+    const key = this.keywordKey().trim().toLowerCase();
+    const value = this.keywordValue().trim();
+    if (!key || !value) {
+      return;
+    }
+
+    const currentKey = this.editingKeyword();
+    if (currentKey && currentKey !== key) {
+      this.userService.removeKeyword(currentKey);
+    }
+
+    this.userService.addKeyword(key, value);
+    this.cancelKeywordEdit();
+  }
+
+  removeKeyword(key: string) {
+    this.userService.removeKeyword(key);
+    if (this.editingKeyword() === key) {
+      this.cancelKeywordEdit();
+    }
+  }
+
+  renderWithShortcuts(content: string): string {
+    if (!content) {
+      return '';
+    }
+    const shortcuts = this.currentShortcuts();
+    if (!shortcuts || Object.keys(shortcuts).length === 0) {
+      return content;
+    }
+    return content.replace(/\{([^}]+)\}/g, (match, key) => {
+      const normalized = this.normalizeShortcutKey(key);
+      return shortcuts[normalized] ?? match;
+    });
+  }
+
+  renderedSheetContent(): string {
+    return this.renderWithShortcuts(this.selectedSheetContent() || this.selectedSheet()?.content || '');
+  }
+
+  renderedSheetContentForSheet(sheet: SheetData): string {
+    return this.renderWithShortcuts(sheet.content || '');
+  }
+
+  navigateToAccount() {
+    this.router.navigate(['/account']);
   }
 
   applyRichFormat(command: 'bold' | 'italic' | 'underline') {
@@ -406,28 +570,48 @@ export class Notebook implements OnInit, OnDestroy {
     this.updateFormattingState();
   }
 
+  private hasTextSelection() {
+    const selection = window.getSelection();
+    return !!selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
+  }
+
+  private setStyleWithCSS() {
+    document.execCommand('styleWithCSS', false, 'true');
+  }
+
   applyFontFamily(fontFamily: string) {
     if (!fontFamily) return;
     this.selectedFontFamily.set(fontFamily);
-    document.execCommand('fontName', false, fontFamily);
+    if (this.hasTextSelection()) {
+      this.setStyleWithCSS();
+      document.execCommand('fontName', false, fontFamily);
+    } else if (this.editor?.nativeElement) {
+      this.editor.nativeElement.style.fontFamily = fontFamily;
+    }
     this.updateFormattingState();
   }
 
   applyFontSize(fontSize: string) {
     if (!fontSize) return;
     this.selectedFontSize.set(fontSize);
-    document.execCommand('fontSize', false, '7');
-    const fontElements = document.getElementsByTagName('font');
-    for (let i = 0; i < fontElements.length; i++) {
-      if (fontElements[i].size === '7') {
-        fontElements[i].removeAttribute('size');
-        fontElements[i].style.fontSize = fontSize;
+    if (this.hasTextSelection()) {
+      this.setStyleWithCSS();
+      document.execCommand('fontSize', false, '7');
+      const fontElements = document.getElementsByTagName('font');
+      for (let i = 0; i < fontElements.length; i++) {
+        if (fontElements[i].size === '7') {
+          fontElements[i].removeAttribute('size');
+          fontElements[i].style.fontSize = fontSize;
+        }
       }
+    } else if (this.editor?.nativeElement) {
+      this.editor.nativeElement.style.fontSize = fontSize;
     }
     this.updateFormattingState();
   }
 
   applyTextColor(color: string) {
+    this.setStyleWithCSS();
     document.execCommand('foreColor', false, color);
     this.updateFormattingState();
   }
@@ -457,7 +641,7 @@ export class Notebook implements OnInit, OnDestroy {
 
   private ensureCurrentFormatting() {
     if (!this.editor?.nativeElement) return;
-    
+
     // Simplemente asegurar que el editor mantenga la fuente y tamaño seleccionados
     this.editor.nativeElement.style.fontFamily = this.selectedFontFamily();
     this.editor.nativeElement.style.fontSize = this.selectedFontSize();
@@ -465,7 +649,7 @@ export class Notebook implements OnInit, OnDestroy {
 
   setInteractionMode(mode: InteractionMode) {
     this.interactionMode.set(mode);
-    
+
     // Inicializar canvas si cambiamos a modo dibujo
     if (mode === 'draw') {
       // Múltiples intentos para asegurar que el canvas esté listo
@@ -473,7 +657,7 @@ export class Notebook implements OnInit, OnDestroy {
       setTimeout(() => this.initDrawingCanvas(), 300);
       setTimeout(() => this.initDrawingCanvas(), 500);
     }
-    
+
     // Cargar contenido si cambiamos a modo texto
     if (mode === 'text' && this.selectedSheet()) {
       // Asegurarse de que el contenido esté cargado en el editor
@@ -484,14 +668,14 @@ export class Notebook implements OnInit, OnDestroy {
         }
       }, 10);
     }
-    
+
     // Multiple attempts to focus the editor in text mode
     const focusEditor = () => {
       if (mode === 'text' && this.editor?.nativeElement) {
         this.editor.nativeElement.focus();
       }
     };
-    
+
     queueMicrotask(focusEditor);
     setTimeout(focusEditor, 10);
     setTimeout(focusEditor, 50);
@@ -505,6 +689,52 @@ export class Notebook implements OnInit, OnDestroy {
 
   closeCreateSheetModal() {
     this.showCreateSheetModal.set(false);
+  }
+
+  openSheetOptionsModal() {
+    this.sheetRenameDraft.set(this.selectedSheet()?.title || '');
+    this.showSheetOptionsModal.set(true);
+  }
+
+  closeSheetOptionsModal() {
+    this.showSheetOptionsModal.set(false);
+  }
+
+  openNotebookOptionsModal() {
+    this.notebookRenameDraft.set(this.notebook()?.name || '');
+    this.showNotebookOptionsModal.set(true);
+  }
+
+  closeNotebookOptionsModal() {
+    this.showNotebookOptionsModal.set(false);
+  }
+
+  saveSheetTitle() {
+    const newTitle = this.sheetRenameDraft().trim();
+    const sheet = this.selectedSheet();
+    const notebook = this.notebook();
+    if (!newTitle || !sheet || !notebook) {
+      return;
+    }
+    this.notebookService.updateSheet(notebook.id, sheet.id, { title: newTitle });
+    this.notebook.set(this.notebookService.getNotebook(notebook.id) || null);
+    const updated = this.notebook()?.sheets.find((s) => s.id === sheet.id);
+    if (updated) {
+      this.selectedSheet.set({ ...updated });
+      this.selectedSheetRegular = { ...updated };
+    }
+    this.closeSheetOptionsModal();
+  }
+
+  saveNotebookTitle() {
+    const newTitle = this.notebookRenameDraft().trim();
+    const notebook = this.notebook();
+    if (!newTitle || !notebook) {
+      return;
+    }
+    this.notebookService.updateNotebook(notebook.id, newTitle);
+    this.notebook.set(this.notebookService.getNotebook(notebook.id) || null);
+    this.closeNotebookOptionsModal();
   }
 
   confirmCreateSheet() {
@@ -574,20 +804,20 @@ export class Notebook implements OnInit, OnDestroy {
     console.log('selectSheet called - sheet:', sheet.title);
     const kind = this.sheetKind(sheet);
     this.setInteractionMode(kind === 'draw' ? 'draw' : 'text');
-    
+
     // Usar propiedad regular además del signal
     this.selectedSheetRegular = sheet;
     this.selectedSheet.set(sheet);
     this.selectedSheetContent.set(sheet.content || '');
-    
+
     console.log('selectedSheet signal:', this.selectedSheet());
     console.log('selectedSheet regular:', this.selectedSheetRegular);
     console.log('hasSelectedSheet getter:', this.hasSelectedSheet);
     this.closeContextMenu();
-    
+
     // Forzar múltiples ciclos de detección de cambios
     this.cdr.detectChanges();
-    
+
     // Forzar actualización con un pequeño delay
     setTimeout(() => {
       this.cdr.detectChanges();
@@ -600,11 +830,11 @@ export class Notebook implements OnInit, OnDestroy {
           ? sheet.content
           : '<p class="sheet-empty-line"><br></p>';
         this.editor.nativeElement.innerHTML = inner;
-        
+
         // Mantener fuente y tamaño seleccionados
         this.editor.nativeElement.style.fontFamily = this.selectedFontFamily();
         this.editor.nativeElement.style.fontSize = this.selectedFontSize();
-        
+
         // Dar foco al editor si estamos en modo texto con múltiples intentos
         if (this.interactionMode() === 'text') {
           const focusEditor = () => {
@@ -612,12 +842,12 @@ export class Notebook implements OnInit, OnDestroy {
               this.editor.nativeElement.focus();
             }
           };
-          
+
           focusEditor();
           setTimeout(focusEditor, 10);
           setTimeout(focusEditor, 100);
         }
-        
+
         this.updateFormattingState();
       }
       if (this.sheetShowsCanvas()) {
@@ -637,7 +867,7 @@ export class Notebook implements OnInit, OnDestroy {
       this.saveSelectedSheetImmediate();
     }, 1000);
   }
-  
+
   saveSelectedSheetImmediate() {
     if (!this.selectedSheet() || !this.notebook()) {
       return;
@@ -651,10 +881,79 @@ export class Notebook implements OnInit, OnDestroy {
     if (upd) {
       this.selectedSheet.set({ ...upd });
     }
+    this.lastSavedAt.set(new Date().toLocaleTimeString());
   }
 
   onSheetClick(sheet: SheetData) {
     this.selectSheet(sheet);
+  }
+
+  clearCurrentSheet() {
+    if (!this.selectedSheet() || !this.notebook()) {
+      return;
+    }
+    if (!confirm('¿Borrar todo el contenido de esta hoja? Esta acción no se puede deshacer.')) {
+      return;
+    }
+    const nb = this.notebook()!;
+    const sh = this.selectedSheet()!;
+    this.notebookService.updateSheet(nb.id, sh.id, { content: '' });
+    this.notebook.set(this.notebookService.getNotebook(nb.id) || null);
+    const upd = this.notebook()?.sheets.find((s) => s.id === sh.id);
+    if (upd) {
+      this.selectedSheet.set({ ...upd });
+      this.selectedSheetContent.set('');
+      if (this.editor?.nativeElement) {
+        this.editor.nativeElement.innerHTML = '<p class="sheet-empty-line"><br></p>';
+      }
+    }
+  }
+
+  exportCurrentSheetAsMarkdown() {
+    const sheet = this.selectedSheet();
+    if (!sheet) {
+      return;
+    }
+    const raw = sheet.content || '';
+    const text = this.stripHtml(raw);
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sheet.title.replace(/[^\w\s-]/g, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  insertDateTime() {
+    if (!this.editor?.nativeElement || this.interactionMode() !== 'text') {
+      return;
+    }
+    const text = new Date().toLocaleString();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      this.editor.nativeElement.focus();
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!this.editor.nativeElement.contains(range.startContainer)) {
+      this.editor.nativeElement.focus();
+      return;
+    }
+    range.deleteContents();
+    const node = document.createTextNode(text);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.onEditorInput(new Event('input'));
+  }
+
+  private stripHtml(html: string) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
   }
 
   onSheetContextMenu(sheet: SheetData, event: MouseEvent) {
@@ -678,10 +977,10 @@ export class Notebook implements OnInit, OnDestroy {
     }
     const editor = event.target as HTMLElement;
     this.selectedSheetContent.set(editor.innerHTML);
-    
+
     // Mantener fuente y tamaño al escribir
     this.ensureCurrentFormatting();
-    
+
     // Guardado inmediato sin retraso
     this.saveSelectedSheetImmediate();
     this.updateFormattingState();
@@ -759,11 +1058,11 @@ export class Notebook implements OnInit, OnDestroy {
   setDrawTool(tool: 'pencil' | 'eraser') {
     this.drawTool.set(tool);
   }
-  
+
   increaseBrushSize() {
     this.brushSize.update(s => Math.min(80, s + 2));
   }
-  
+
   decreaseBrushSize() {
     this.brushSize.update(s => Math.max(1, s - 2));
   }
@@ -816,6 +1115,7 @@ export class Notebook implements OnInit, OnDestroy {
           name: file.name,
           mimeType: file.type || 'application/octet-stream',
           dataUrl,
+          size: file.size,
           addedAt: new Date().toISOString(),
         });
       } catch {
@@ -833,6 +1133,9 @@ export class Notebook implements OnInit, OnDestroy {
   }
 
   removeAttachment(att: SheetAttachment) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar el archivo "${att.name}"?`)) {
+      return;
+    }
     const nb = this.notebook();
     const sh = this.selectedSheet();
     if (!nb || !sh) {
@@ -845,6 +1148,20 @@ export class Notebook implements OnInit, OnDestroy {
     if (upd) {
       this.selectedSheet.set({ ...upd });
     }
+    if (this.attachmentPreview() && this.attachmentPreview()!.id === att.id) {
+      this.closeAttachmentPreview();
+    }
+  }
+
+  deleteAttachmentFromPreview() {
+    const att = this.attachmentPreview();
+    if (!att) {
+      return;
+    }
+    if (!confirm(`¿Eliminar el archivo "${att.name}" desde la vista previa?`)) {
+      return;
+    }
+    this.removeAttachment(att);
   }
 
   downloadAttachment(att: SheetAttachment) {
@@ -857,6 +1174,90 @@ export class Notebook implements OnInit, OnDestroy {
 
   toggleAttachmentsList() {
     this.showAttachmentsList.set(!this.showAttachmentsList());
+  }
+
+  copySheetContent() {
+    const text = this.selectedSheetContent();
+    if (!text) {
+      alert('No hay contenido para copiar.');
+      return;
+    }
+    void navigator.clipboard.writeText(text);
+    alert('Contenido copiado al portapapeles.');
+  }
+
+  downloadCurrentSheet() {
+    const sheet = this.selectedSheet();
+    if (!sheet) {
+      return;
+    }
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${sheet.title}</title></head><body>${sheet.content || ''}</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sheet.title.replace(/[^\\w\s-]/g, '_')}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  openAttachmentPreview(att: SheetAttachment) {
+    this.attachmentPreview.set(att);
+    this.safePreviewUrl.set(this.isPdfAttachment(att) ? this.sanitizer.bypassSecurityTrustResourceUrl(att.dataUrl) : null);
+    this.showAttachmentPreview.set(true);
+  }
+
+  closeAttachmentPreview() {
+    this.showAttachmentPreview.set(false);
+    this.attachmentPreview.set(null);
+    this.safePreviewUrl.set(null);
+  }
+
+  private getAttachmentExtension(att: SheetAttachment | null) {
+    if (!att) {
+      return '';
+    }
+    const parts = att.name.toLowerCase().split('.');
+    return parts.length > 1 ? parts.pop()! : '';
+  }
+
+  isPdfAttachment(att: SheetAttachment | null) {
+    const ext = this.getAttachmentExtension(att);
+    return !!att && (att.mimeType === 'application/pdf' || ext === 'pdf');
+  }
+
+  isWordAttachment(att: SheetAttachment | null) {
+    const ext = this.getAttachmentExtension(att);
+    return !!att && (
+      att.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      att.mimeType === 'application/msword' ||
+      ext === 'docx' ||
+      ext === 'doc'
+    );
+  }
+
+  isImageAttachment(att: SheetAttachment | null) {
+    const ext = this.getAttachmentExtension(att);
+    return !!att && (
+      att.mimeType.startsWith('image/') ||
+      ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'].includes(ext)
+    );
+  }
+
+  isVideoAttachment(att: SheetAttachment | null) {
+    const ext = this.getAttachmentExtension(att);
+    return !!att && (
+      att.mimeType.startsWith('video/') ||
+      ['mp4', 'webm', 'ogg', 'mov', 'avi', 'm4v'].includes(ext)
+    );
+  }
+
+  isPreviewableAttachment(att: SheetAttachment | null) {
+    return !!att && (this.isImageAttachment(att) || this.isVideoAttachment(att) || this.isPdfAttachment(att));
+  }
+
+  get attachmentActionLabel() {
+    return this.showAttachmentsList() ? 'Ocultar archivos' : 'Mostrar archivos';
   }
 
   addTagFromDraft() {
@@ -934,7 +1335,7 @@ export class Notebook implements OnInit, OnDestroy {
     if (!canvas || !this.selectedSheet()) {
       return;
     }
-    
+
     // Esperar a que el canvas tenga dimensiones
     const checkAndInit = () => {
       const cssW = canvas.clientWidth;
@@ -943,14 +1344,14 @@ export class Notebook implements OnInit, OnDestroy {
         requestAnimationFrame(checkAndInit);
         return;
       }
-      
+
       // Configurar el canvas con mejor calidad
       const dpr = window.devicePixelRatio || 1;
       const scale = Math.max(dpr, 2); // Forzar al menos 2x para mejor calidad
       canvas.width = Math.max(1, Math.floor(cssW * scale));
       canvas.height = Math.max(1, Math.floor(cssH * scale));
-      
-      const ctx = canvas.getContext('2d', { 
+
+      const ctx = canvas.getContext('2d', {
         alpha: true,
         willReadFrequently: false,
         desynchronized: true // Mejor rendimiento para dibujo
@@ -959,28 +1360,28 @@ export class Notebook implements OnInit, OnDestroy {
         console.error('No se pudo obtener el contexto 2D del canvas');
         return;
       }
-      
+
       // Configurar suavizado y calidad
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      
+
       // Escalar para pantallas de alta densidad
       ctx.scale(scale, scale);
-      
+
       // Limpiar el canvas con fondo blanco/transparente
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
-      
+
       // Agregar fondo blanco para mejor visibilidad
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, cssW, cssH);
-      
+
       // Cargar dibujo existente si hay
       const dataUrl = this.selectedSheet()!.drawing;
       if (dataUrl && dataUrl.startsWith('data:image/png')) {
         const img = new Image();
         img.onload = () => {
-          const ctx2 = canvas.getContext('2d', { 
+          const ctx2 = canvas.getContext('2d', {
             alpha: true,
             willReadFrequently: false,
             desynchronized: true
@@ -1002,16 +1403,16 @@ export class Notebook implements OnInit, OnDestroy {
         };
         img.src = dataUrl;
       }
-      
+
       console.log('Canvas inicializado con alta calidad:', { width: cssW, height: cssH, scale, dpr });
-      
+
       // Forzar repintado
       canvas.style.display = 'block';
       canvas.style.visibility = 'visible';
       canvas.style.backgroundColor = '#ffffff';
       canvas.style.imageRendering = 'crisp-edges'; // Mejor para líneas
     };
-    
+
     checkAndInit();
   }
 
@@ -1035,19 +1436,19 @@ export class Notebook implements OnInit, OnDestroy {
     ) {
       return;
     }
-    
+
     event.preventDefault();
     const canvas = this.drawCanvas!.nativeElement;
-    
+
     // Capturar el puntero para eventos fuera del canvas
     canvas.setPointerCapture(event.pointerId);
-    
+
     const { x, y } = this.canvasCssCoords(event);
     this.isDrawingStroke = true;
     this.lastDrawX = x;
     this.lastDrawY = y;
 
-    const ctx = canvas.getContext('2d', { 
+    const ctx = canvas.getContext('2d', {
       alpha: true,
       willReadFrequently: false,
       desynchronized: true
@@ -1056,10 +1457,10 @@ export class Notebook implements OnInit, OnDestroy {
       console.error('No se pudo obtener el contexto del canvas');
       return;
     }
-    
+
     const scale = Math.max(window.devicePixelRatio || 1, 2);
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    
+
     // Configurar calidad de línea
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -1087,12 +1488,12 @@ export class Notebook implements OnInit, OnDestroy {
     if (!this.isDrawingStroke || !this.drawCanvas?.nativeElement) {
       return;
     }
-    
+
     event.preventDefault();
     const { x, y } = this.canvasCssCoords(event);
     const canvas = this.drawCanvas.nativeElement;
-    
-    const ctx = canvas.getContext('2d', { 
+
+    const ctx = canvas.getContext('2d', {
       alpha: true,
       willReadFrequently: false,
       desynchronized: true
@@ -1101,10 +1502,10 @@ export class Notebook implements OnInit, OnDestroy {
       console.error('No se pudo obtener el contexto del canvas');
       return;
     }
-    
+
     const scale = Math.max(window.devicePixelRatio || 1, 2);
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    
+
     // Configurar alta calidad para líneas
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -1134,7 +1535,7 @@ export class Notebook implements OnInit, OnDestroy {
       ctx.stroke();
       ctx.restore();
     }
-    
+
     this.lastDrawX = x;
     this.lastDrawY = y;
   }
@@ -1175,7 +1576,7 @@ export class Notebook implements OnInit, OnDestroy {
 
   private updateFormattingState() {
     if (!this.editor?.nativeElement) return;
-    
+
     // Use a small delay to ensure the DOM is updated
     setTimeout(() => {
       this.boldActive.set(document.queryCommandState('bold'));
@@ -1305,7 +1706,7 @@ export class Notebook implements OnInit, OnDestroy {
     // Guardado inmediato del dibujo
     this.saveDrawingImmediate();
   }
-  
+
   private saveDrawingImmediate() {
     const nb = this.notebook();
     const sh = this.selectedSheet();

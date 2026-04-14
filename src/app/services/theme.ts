@@ -14,6 +14,10 @@ export class ThemeService {
       const saved = localStorage.getItem('theme');
       if (saved === 'dark') {
         this.isDarkMode.set(true);
+      } else if (saved === 'light') {
+        this.isDarkMode.set(false);
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        this.isDarkMode.set(true);
       }
     }
     this.applyTheme();
