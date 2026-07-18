@@ -1,6 +1,6 @@
 .home-app {
   --home-bg: var(--app-bg);
-  --home-header: linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--home-bg));
+  --home-header: var(--app-surface);
   --home-border: var(--app-border);
   --home-ink: var(--app-text);
   --home-ink-muted: var(--app-text-muted);
@@ -8,15 +8,15 @@
   --home-surface: var(--app-surface-soft);
   --home-accent: var(--app-accent);
   --home-accent-ink: #ffffff;
-  --home-trash-bg: #fef0ee;
-  --home-trash-border: #f6c3b9;
-  --home-trash-title: #7f1d1d;
-  --home-trash-muted: #9f1239;
+  --home-trash-bg: #fef2f2;
+  --home-trash-border: #fecaca;
+  --home-trash-title: #dc2626;
+  --home-trash-muted: #ef4444;
 }
 
 :host-context(.dark) .home-app {
-  --home-bg: #050b12;
-  --home-header: linear-gradient(180deg, rgba(17, 24, 39, 0.98), var(--home-bg));
+  --home-bg: var(--app-bg);
+  --home-header: var(--app-surface);
   --home-border: var(--app-border);
   --home-ink: var(--app-text);
   --home-ink-muted: var(--app-text-muted);
@@ -24,10 +24,10 @@
   --home-surface: var(--app-surface-soft);
   --home-accent: var(--app-accent);
   --home-accent-ink: #ffffff;
-  --home-trash-bg: #2f1b1c;
+  --home-trash-bg: #450a0a;
   --home-trash-border: #7f1d1d;
-  --home-trash-title: #fecaca;
-  --home-trash-muted: #fca5a5;
+  --home-trash-title: #fca5a5;
+  --home-trash-muted: #f87171;
 }
 
 .home-header {
@@ -37,18 +37,28 @@
 .home-btn-primary {
   background: var(--home-accent);
   color: var(--home-accent-ink);
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease;
 }
 .home-btn-primary:hover {
-  filter: brightness(1.05);
+  background: var(--app-accent-strong);
 }
 
 .home-btn-secondary {
   background: var(--home-card);
   color: var(--home-ink);
   border-color: var(--home-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .home-btn-secondary:hover {
   background: var(--home-surface);
+  border-color: var(--app-accent);
 }
 
 .home-badge {
@@ -70,6 +80,9 @@
   border: 1px solid var(--home-border);
   background: var(--home-card);
   color: var(--home-ink);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
 }
 .home-input::placeholder {
   color: var(--home-ink-muted);
@@ -77,8 +90,8 @@
 .home-input:focus,
 .home-select:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--home-accent);
-  border-color: transparent;
+  border-color: var(--home-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .home-btn-danger {
@@ -128,7 +141,7 @@ details.home-trash-group summary::-webkit-details-marker {
 }
 
 .home-notebook-strip {
-  background: linear-gradient(90deg, var(--home-accent), #6366f1);
+  background: var(--home-accent);
 }
 
 .home-open-btn {
@@ -142,8 +155,8 @@ details.home-trash-group summary::-webkit-details-marker {
 }
 
 .home-notebook-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .home-notebook-card:hover {
-  transform: translateY(-3px);
+  border-color: var(--home-accent);
 }
